@@ -41,4 +41,4 @@
 *.app
 
 # debug information files
-*.dwo
+*.dwobuild/
