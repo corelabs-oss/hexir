@@ -7,13 +7,14 @@
 //===----------------------------------------------------------------------===//
 //
 // This file implements the IR Dialect for the Toy language.
-// See docs/Tutorials/Toy/Ch-2.md for more information.
+// See docs/Tutorials/Ch-2.md for more information.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_TUTORIAL_TOY_DIALECT_H_
-#define MLIR_TUTORIAL_TOY_DIALECT_H_
+#ifndef MLIR_TUTORIAL_MLP_DIALECT_H_
+#define MLIR_TUTORIAL_MLP_DIALECT_H_
 
+#include "ShapeInferenceInterface.h"
 #include "mlir/Bytecode/BytecodeOpInterface.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Dialect.h"
@@ -22,7 +23,6 @@
 #include "mlir/Interfaces/CastInterfaces.h"
 #include "mlir/Interfaces/FunctionInterfaces.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
-#include "toy/ShapeInferenceInterface.h"
 
 namespace mlir {
 namespace toy {
@@ -34,7 +34,7 @@ struct StructTypeStorage;
 
 /// Include the auto-generated header file containing the declaration of the toy
 /// dialect.
-#include "toy/Dialect.h.inc"
+#include "Dialect.h.inc"
 
 //===----------------------------------------------------------------------===//
 // Toy Operations
@@ -43,7 +43,7 @@ struct StructTypeStorage;
 /// Include the auto-generated header file containing the declarations of the
 /// toy operations.
 #define GET_OP_CLASSES
-#include "toy/Ops.h.inc"
+#include "Ops.h.inc"
 
 namespace mlir {
 namespace toy {
@@ -79,4 +79,4 @@ public:
 } // namespace toy
 } // namespace mlir
 
-#endif // MLIR_TUTORIAL_TOY_DIALECT_H_
+#endif // MLIR_TUTORIAL_MLP_DIALECT_H_

@@ -11,20 +11,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TOY_PARSER_H
-#define TOY_PARSER_H
+#ifndef MLP_PARSER_H
+#define MLP_PARSER_H
 
-#include "toy/AST.h"
-#include "toy/Lexer.h"
+#include "AST.h"
+#include "Lexer.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <map>
+#include <optional>
 #include <utility>
 #include <vector>
-#include <optional>
 
 namespace toy {
 
@@ -680,4 +680,4 @@ private:
 
 } // namespace toy
 
-#endif // TOY_PARSER_H
+#endif // MLP_PARSER_H

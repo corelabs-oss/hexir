@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TOY_LEXER_H
-#define TOY_LEXER_H
+#ifndef MLP_LEXER_H
+#define MLP_LEXER_H
 
 #include "llvm/ADT/StringRef.h"
 
@@ -233,4 +233,4 @@ private:
 };
 } // namespace toy
 
-#endif // TOY_LEXER_H
+#endif // MLP_LEXER_H

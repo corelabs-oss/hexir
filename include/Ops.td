@@ -10,15 +10,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TOY_OPS
-#define TOY_OPS
+#ifndef MLP_OPS
+#define MLP_OPS
 
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
-include "toy/ShapeInferenceInterface.td"
+include "ShapeInferenceInterface.td"
 
 // Provide a definition of the 'toy' dialect in the ODS framework so that we
 // can define our operations.
@@ -456,4 +456,4 @@ def TransposeOp : Toy_Op<"transpose",
   let hasVerifier = 1;
 }
 
-#endif // TOY_OPS
+#endif // MLP_OPS

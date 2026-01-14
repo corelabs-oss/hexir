@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TOY_MLIRGEN_H
-#define TOY_MLIRGEN_H
+#ifndef MLP_MLIRGEN_H
+#define MLP_MLIRGEN_H
 
 #include <memory>
 
@@ -32,4 +32,4 @@ mlir::OwningOpRef<mlir::ModuleOp> mlirGen(mlir::MLIRContext &context,
                                           ModuleAST &moduleAST);
 } // namespace toy
 
-#endif // TOY_MLIRGEN_H
+#endif // MLP_MLIRGEN_H

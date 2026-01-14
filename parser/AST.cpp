@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "toy/AST.h"
+#include "AST.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Twine.h"

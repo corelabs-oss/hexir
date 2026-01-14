@@ -12,6 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "Dialect.h"
+#include "Passes.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -22,8 +24,6 @@
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/TypeID.h"
-#include "toy/Dialect.h"
-#include "toy/Passes.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"

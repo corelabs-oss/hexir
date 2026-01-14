@@ -11,15 +11,15 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "Dialect.h"
+#include "Passes.h"
+#include "ShapeInferenceInterface.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Types.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/TypeID.h"
-#include "toy/Dialect.h"
-#include "toy/Passes.h"
-#include "toy/ShapeInferenceInterface.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/Casting.h"
@@ -33,7 +33,7 @@ using namespace mlir;
 using namespace toy;
 
 /// Include the auto-generated definitions for the shape inference interfaces.
-#include "toy/ShapeInferenceOpInterfaces.cpp.inc"
+#include "ShapeInferenceOpInterfaces.cpp.inc"
 
 namespace {
 /// The ShapeInferencePass is a pass that performs intra-procedural

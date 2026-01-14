@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "toy/Dialect.h"
+#include "Dialect.h"
 
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
@@ -42,7 +42,7 @@
 using namespace mlir;
 using namespace mlir::toy;
 
-#include "toy/Dialect.cpp.inc"
+#include "Dialect.cpp.inc"
 
 //===----------------------------------------------------------------------===//
 // ToyInlinerInterface
@@ -636,7 +636,7 @@ void ToyDialect::printType(mlir::Type type,
 //===----------------------------------------------------------------------===//
 
 #define GET_OP_CLASSES
-#include "toy/Ops.cpp.inc"
+#include "Ops.cpp.inc"
 
 //===----------------------------------------------------------------------===//
 // ToyDialect
@@ -647,7 +647,7 @@ void ToyDialect::printType(mlir::Type type,
 void ToyDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
-#include "toy/Ops.cpp.inc"
+#include "Ops.cpp.inc"
       >();
   addInterfaces<ToyInlinerInterface>();
   addTypes<StructType>();

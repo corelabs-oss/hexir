@@ -12,10 +12,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TOY_AST_H
-#define TOY_AST_H
+#ifndef MLP_AST_H
+#define MLP_AST_H
 
-#include "toy/Lexer.h"
+#include "Lexer.h"
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
@@ -310,4 +310,4 @@ void dump(ModuleAST &);
 
 } // namespace toy
 
-#endif // TOY_AST_H
+#endif // MLP_AST_H

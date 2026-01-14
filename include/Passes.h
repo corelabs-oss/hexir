@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TOY_PASSES_H
-#define TOY_PASSES_H
+#ifndef MLP_PASSES_H
+#define MLP_PASSES_H
 
 #include <memory>
 
@@ -32,4 +32,4 @@ std::unique_ptr<mlir::Pass> createLowerToLLVMPass();
 } // namespace toy
 } // namespace mlir
 
-#endif // TOY_PASSES_H
+#endif // MLP_PASSES_H
