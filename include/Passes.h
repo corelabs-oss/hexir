@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLP_PASSES_H
-#define MLP_PASSES_H
+#ifndef PASSES_H
+#define PASSES_H
 
 #include <memory>
 

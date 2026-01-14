@@ -225,13 +225,13 @@ add_public_tablegen_target(CombineIncGen)
 # )
 add_executable(standalone_mlir
   main.cpp
-  parser/AST.cpp
-  mlir/MLIRGen.cpp
-  mlir/Dialect.cpp
-  mlir/LowerToAffineLoops.cpp
-  mlir/LowerToLLVM.cpp
-  mlir/ShapeInferencePass.cpp
-  mlir/ToyCombine.cpp
+  # parser/AST.cpp
+  # mlir/MLIRGen.cpp
+  # mlir/Dialect.cpp
+  # mlir/LowerToAffineLoops.cpp
+  # mlir/LowerToLLVM.cpp
+  # mlir/ShapeInferencePass.cpp
+  # mlir/ToyCombine.cpp
   )
 
 
