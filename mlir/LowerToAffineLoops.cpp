@@ -134,170 +134,171 @@ struct BinaryOpLowering : public OpConversionPattern<BinaryOp> {
     return success();
   }
 };
-using AddOpLowering = BinaryOpLowering<toy::AddOp, arith::AddFOp>;
-using MulOpLowering = BinaryOpLowering<toy::MulOp, arith::MulFOp>;
+
+// using AddOpLowering = BinaryOpLowering<toy::AddOp, arith::AddFOp>;
+// using MulOpLowering = BinaryOpLowering<toy::MulOp, arith::MulFOp>;
 
 //===----------------------------------------------------------------------===//
 // ToyToAffine Conversion Patterns: Constant operations
 //===----------------------------------------------------------------------===//
 
-struct ConstantOpLowering : public OpConversionPattern<toy::ConstantOp> {
-  using OpConversionPattern<toy::ConstantOp>::OpConversionPattern;
+// struct ConstantOpLowering : public OpConversionPattern<toy::ConstantOp> {
+//   using OpConversionPattern<toy::ConstantOp>::OpConversionPattern;
 
-  LogicalResult
-  matchAndRewrite(toy::ConstantOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const final {
-    DenseElementsAttr constantValue = op.getValue();
-    Location loc = op.getLoc();
+//   LogicalResult
+//   matchAndRewrite(toy::ConstantOp op, OpAdaptor adaptor,
+//                   ConversionPatternRewriter &rewriter) const final {
+//     DenseElementsAttr constantValue = op.getValue();
+//     Location loc = op.getLoc();
 
-    // When lowering the constant operation, we allocate and assign the constant
-    // values to a corresponding memref allocation.
-    auto tensorType = llvm::cast<RankedTensorType>(op.getType());
-    auto memRefType = convertTensorToMemRef(tensorType);
-    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+//     // When lowering the constant operation, we allocate and assign the constant
+//     // values to a corresponding memref allocation.
+//     auto tensorType = llvm::cast<RankedTensorType>(op.getType());
+//     auto memRefType = convertTensorToMemRef(tensorType);
+//     auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
 
-    // We will be generating constant indices up-to the largest dimension.
-    // Create these constants up-front to avoid large amounts of redundant
-    // operations.
-    auto valueShape = memRefType.getShape();
-    SmallVector<Value, 8> constantIndices;
+//     // We will be generating constant indices up-to the largest dimension.
+//     // Create these constants up-front to avoid large amounts of redundant
+//     // operations.
+//     auto valueShape = memRefType.getShape();
+//     SmallVector<Value, 8> constantIndices;
 
-    if (!valueShape.empty()) {
-      for (auto i : llvm::seq<int64_t>(0, *llvm::max_element(valueShape)))
-        constantIndices.push_back(
-            arith::ConstantIndexOp::create(rewriter, loc, i));
-    } else {
-      // This is the case of a tensor of rank 0.
-      constantIndices.push_back(
-          arith::ConstantIndexOp::create(rewriter, loc, 0));
-    }
+//     if (!valueShape.empty()) {
+//       for (auto i : llvm::seq<int64_t>(0, *llvm::max_element(valueShape)))
+//         constantIndices.push_back(
+//             arith::ConstantIndexOp::create(rewriter, loc, i));
+//     } else {
+//       // This is the case of a tensor of rank 0.
+//       constantIndices.push_back(
+//           arith::ConstantIndexOp::create(rewriter, loc, 0));
+//     }
 
-    // The constant operation represents a multi-dimensional constant, so we
-    // will need to generate a store for each of the elements. The following
-    // functor recursively walks the dimensions of the constant shape,
-    // generating a store when the recursion hits the base case.
-    SmallVector<Value, 2> indices;
-    auto valueIt = constantValue.value_begin<FloatAttr>();
-    std::function<void(uint64_t)> storeElements = [&](uint64_t dimension) {
-      // The last dimension is the base case of the recursion, at this point
-      // we store the element at the given index.
-      if (dimension == valueShape.size()) {
-        affine::AffineStoreOp::create(
-            rewriter, loc, arith::ConstantOp::create(rewriter, loc, *valueIt++),
-            alloc, llvm::ArrayRef(indices));
-        return;
-      }
+//     // The constant operation represents a multi-dimensional constant, so we
+//     // will need to generate a store for each of the elements. The following
+//     // functor recursively walks the dimensions of the constant shape,
+//     // generating a store when the recursion hits the base case.
+//     SmallVector<Value, 2> indices;
+//     auto valueIt = constantValue.value_begin<FloatAttr>();
+//     std::function<void(uint64_t)> storeElements = [&](uint64_t dimension) {
+//       // The last dimension is the base case of the recursion, at this point
+//       // we store the element at the given index.
+//       if (dimension == valueShape.size()) {
+//         affine::AffineStoreOp::create(
+//             rewriter, loc, arith::ConstantOp::create(rewriter, loc, *valueIt++),
+//             alloc, llvm::ArrayRef(indices));
+//         return;
+//       }
 
-      // Otherwise, iterate over the current dimension and add the indices to
-      // the list.
-      for (uint64_t i = 0, e = valueShape[dimension]; i != e; ++i) {
-        indices.push_back(constantIndices[i]);
-        storeElements(dimension + 1);
-        indices.pop_back();
-      }
-    };
+//       // Otherwise, iterate over the current dimension and add the indices to
+//       // the list.
+//       for (uint64_t i = 0, e = valueShape[dimension]; i != e; ++i) {
+//         indices.push_back(constantIndices[i]);
+//         storeElements(dimension + 1);
+//         indices.pop_back();
+//       }
+//     };
 
-    // Start the element storing recursion from the first dimension.
-    storeElements(/*dimension=*/0);
+//     // Start the element storing recursion from the first dimension.
+//     storeElements(/*dimension=*/0);
 
-    // Replace this operation with the generated alloc.
-    rewriter.replaceOp(op, alloc);
-    return success();
-  }
-};
+//     // Replace this operation with the generated alloc.
+//     rewriter.replaceOp(op, alloc);
+//     return success();
+//   }
+// };
 
-//===----------------------------------------------------------------------===//
-// ToyToAffine Conversion Patterns: Func operations
-//===----------------------------------------------------------------------===//
+// //===----------------------------------------------------------------------===//
+// // ToyToAffine Conversion Patterns: Func operations
+// //===----------------------------------------------------------------------===//
 
-struct FuncOpLowering : public OpConversionPattern<toy::FuncOp> {
-  using OpConversionPattern<toy::FuncOp>::OpConversionPattern;
+// struct FuncOpLowering : public OpConversionPattern<toy::FuncOp> {
+//   using OpConversionPattern<toy::FuncOp>::OpConversionPattern;
 
-  LogicalResult
-  matchAndRewrite(toy::FuncOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const final {
-    // We only lower the main function as we expect that all other functions
-    // have been inlined.
-    if (op.getName() != "main")
-      return failure();
+//   LogicalResult
+//   matchAndRewrite(toy::FuncOp op, OpAdaptor adaptor,
+//                   ConversionPatternRewriter &rewriter) const final {
+//     // We only lower the main function as we expect that all other functions
+//     // have been inlined.
+//     if (op.getName() != "main")
+//       return failure();
 
-    // Verify that the given main has no inputs and results.
-    if (op.getNumArguments() || op.getFunctionType().getNumResults()) {
-      return rewriter.notifyMatchFailure(op, [](Diagnostic &diag) {
-        diag << "expected 'main' to have 0 inputs and 0 results";
-      });
-    }
+//     // Verify that the given main has no inputs and results.
+//     if (op.getNumArguments() || op.getFunctionType().getNumResults()) {
+//       return rewriter.notifyMatchFailure(op, [](Diagnostic &diag) {
+//         diag << "expected 'main' to have 0 inputs and 0 results";
+//       });
+//     }
 
-    // Create a new non-toy function, with the same region.
-    auto func = mlir::func::FuncOp::create(rewriter, op.getLoc(), op.getName(),
-                                           op.getFunctionType());
-    rewriter.inlineRegionBefore(op.getRegion(), func.getBody(), func.end());
-    rewriter.eraseOp(op);
-    return success();
-  }
-};
+//     // Create a new non-toy function, with the same region.
+//     auto func = mlir::func::FuncOp::create(rewriter, op.getLoc(), op.getName(),
+//                                            op.getFunctionType());
+//     rewriter.inlineRegionBefore(op.getRegion(), func.getBody(), func.end());
+//     rewriter.eraseOp(op);
+//     return success();
+//   }
+// };
 
-//===----------------------------------------------------------------------===//
-// ToyToAffine Conversion Patterns: Print operations
-//===----------------------------------------------------------------------===//
+// //===----------------------------------------------------------------------===//
+// // ToyToAffine Conversion Patterns: Print operations
+// //===----------------------------------------------------------------------===//
 
-struct PrintOpLowering : public OpConversionPattern<toy::PrintOp> {
-  using OpConversionPattern<toy::PrintOp>::OpConversionPattern;
+// struct PrintOpLowering : public OpConversionPattern<toy::PrintOp> {
+//   using OpConversionPattern<toy::PrintOp>::OpConversionPattern;
 
-  LogicalResult
-  matchAndRewrite(toy::PrintOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const final {
-    // We don't lower "toy.print" in this pass, but we need to update its
-    // operands.
-    rewriter.modifyOpInPlace(op,
-                             [&] { op->setOperands(adaptor.getOperands()); });
-    return success();
-  }
-};
+//   LogicalResult
+//   matchAndRewrite(toy::PrintOp op, OpAdaptor adaptor,
+//                   ConversionPatternRewriter &rewriter) const final {
+//     // We don't lower "toy.print" in this pass, but we need to update its
+//     // operands.
+//     rewriter.modifyOpInPlace(op,
+//                              [&] { op->setOperands(adaptor.getOperands()); });
+//     return success();
+//   }
+// };
 
 //===----------------------------------------------------------------------===//
 // ToyToAffine Conversion Patterns: Return operations
 //===----------------------------------------------------------------------===//
 
-struct ReturnOpLowering : public OpConversionPattern<toy::ReturnOp> {
-  using OpConversionPattern<toy::ReturnOp>::OpConversionPattern;
+// struct ReturnOpLowering : public OpConversionPattern<toy::ReturnOp> {
+//   using OpConversionPattern<toy::ReturnOp>::OpConversionPattern;
 
-  LogicalResult
-  matchAndRewrite(toy::ReturnOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const final {
-    // During this lowering, we expect that all function calls have been
-    // inlined.
-    if (op.hasOperand())
-      return failure();
+//   LogicalResult
+//   matchAndRewrite(toy::ReturnOp op, OpAdaptor adaptor,
+//                   ConversionPatternRewriter &rewriter) const final {
+//     // During this lowering, we expect that all function calls have been
+//     // inlined.
+//     if (op.hasOperand())
+//       return failure();
 
-    // We lower "toy.return" directly to "func.return".
-    rewriter.replaceOpWithNewOp<func::ReturnOp>(op);
-    return success();
-  }
-};
+//     // We lower "toy.return" directly to "func.return".
+//     rewriter.replaceOpWithNewOp<func::ReturnOp>(op);
+//     return success();
+//   }
+// };
 
 //===----------------------------------------------------------------------===//
 // ToyToAffine Conversion Patterns: Transpose operations
 //===----------------------------------------------------------------------===//
 
-struct TransposeOpLowering : public OpConversionPattern<toy::TransposeOp> {
-  using OpConversionPattern<toy::TransposeOp>::OpConversionPattern;
+// struct TransposeOpLowering : public OpConversionPattern<toy::TransposeOp> {
+//   using OpConversionPattern<toy::TransposeOp>::OpConversionPattern;
 
-  LogicalResult
-  matchAndRewrite(toy::TransposeOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const final {
-    auto loc = op->getLoc();
-    lowerOpToLoops(op, rewriter, [&](OpBuilder &builder, ValueRange loopIvs) {
-      Value input = adaptor.getInput();
+//   LogicalResult
+//   matchAndRewrite(toy::TransposeOp op, OpAdaptor adaptor,
+//                   ConversionPatternRewriter &rewriter) const final {
+//     auto loc = op->getLoc();
+//     lowerOpToLoops(op, rewriter, [&](OpBuilder &builder, ValueRange loopIvs) {
+//       Value input = adaptor.getInput();
 
-      // Transpose the elements by generating a load from the
-      // reverse indices.
-      SmallVector<Value, 2> reverseIvs(llvm::reverse(loopIvs));
-      return affine::AffineLoadOp::create(builder, loc, input, reverseIvs);
-    });
-    return success();
-  }
-};
+//       // Transpose the elements by generating a load from the
+//       // reverse indices.
+//       SmallVector<Value, 2> reverseIvs(llvm::reverse(loopIvs));
+//       return affine::AffineLoadOp::create(builder, loc, input, reverseIvs);
+//     });
+//     return success();
+//   }
+// };
 
 } // namespace
 
@@ -349,9 +350,8 @@ void ToyToAffineLoweringPass::runOnOperation() {
   // Now that the conversion target has been defined, we just need to provide
   // the set of patterns that will lower the Toy operations.
   RewritePatternSet patterns(&getContext());
-  patterns.add<AddOpLowering, ConstantOpLowering, FuncOpLowering, MulOpLowering,
-               PrintOpLowering, ReturnOpLowering, TransposeOpLowering>(
-      &getContext());
+  // patterns.add</*AddOpLowering, ConstantOpLowering, FuncOpLowering, MulOpLowering,
+  //              PrintOpLowering, ReturnOpLowering, TransposeOpLowering*/>(&getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
   // conversion. The conversion will signal failure if any of our `illegal`
