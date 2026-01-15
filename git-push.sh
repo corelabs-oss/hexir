@@ -1,3 +1,3 @@
 git add -A
-git commit -m "Remove build artifacts"
+git commit -m "refactor" # Add msg
 git push --force

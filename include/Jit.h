@@ -1,3 +1,19 @@
+//===- Jit.h - MLP Jit -------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file implements the parser for the Toy language. It processes the Token
+// provided by the Lexer and returns an AST.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef JIT_H
+#define JIT_H
+
 #include "Dialect.h"
 #include "Passes.h"
 #include "mlir/Dialect/Affine/Transforms/Passes.h"
@@ -19,6 +35,8 @@
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/Passes.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
 #include "llvm/IR/Module.h"
@@ -29,12 +47,16 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
+#include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <system_error>
 #include <utility>
-namespace jit
-{
+#include <vector>
+
+namespace jit {
+
 static int runJit(mlir::ModuleOp module) {
 
   int enableOpt = false;
@@ -71,4 +93,6 @@ static int runJit(mlir::ModuleOp module) {
   return 0;
 }
 
-}
+} // namespace toy
+
+#endif // MLP_PARSER_H

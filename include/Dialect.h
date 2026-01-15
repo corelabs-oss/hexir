@@ -26,7 +26,9 @@
 
 namespace mlir {
 namespace toy {
+
 namespace detail {
+
 struct StructTypeStorage;
 } // namespace detail
 } // namespace toy
