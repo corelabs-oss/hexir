@@ -30,7 +30,7 @@ func::FuncOp createMLPAddFunction(MLIRContext &ctx, ModuleOp module);
 
 func::FuncOp createMLPReluFunction(MLIRContext &ctx, ModuleOp module);
 
-func::FuncOp createMLPTESTFunction(MLIRContext &ctx, ModuleOp module);
+func::FuncOp createMLPLinearFunction(MLIRContext &ctx, ModuleOp module);
 
 } // namespace builder
 

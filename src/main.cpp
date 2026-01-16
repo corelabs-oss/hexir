@@ -139,7 +139,7 @@ int main() {
 
   // createMLPAddTOSAFunction(ctx, *module);
   // createMLPReluFunction(ctx, *module);
-  createMLPTESTFunction(ctx, *module);
+  createMLPLinearFunction(ctx, *module);
 
   llvm::outs()
       << "\n===================== mlir dialect ========================\n";
@@ -165,7 +165,7 @@ int main() {
     optPM.addPass(mlir::createCSEPass());
   }
 
-  if (0) {
+  if (1) {
     // Partially lower the mlp dialect.
     pm.addPass(mlir::mlp::createLowerToLinalgPass());
 
@@ -193,7 +193,7 @@ int main() {
     }
   }
 
-  if (1) {
+  if (0) {
     // Partially lower the mlp dialect.
     pm.addPass(mlir::mlp::createLowerToAffinePass());
     // Add a few cleanups post lowering.

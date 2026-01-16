@@ -68,8 +68,11 @@ func::FuncOp createMainFunction(MLIRContext &ctx, ModuleOp module) {
   Value c2 = builder.create<arith::ConstantOp>(builder.getUnknownLoc(),
                                                builder.getF32FloatAttr(2.0));
 
-//  [[maybe_unused]] Value add = builder .create<func::CallOp>(builder.getUnknownLoc(), "my_mul", builder.getF32Type(), ValueRange{c1, c2}) ->getResult(0);
-//   Value sum = builder.create<arith::AddFOp>(builder.getUnknownLoc(), c1,  c2);
+  //  [[maybe_unused]] Value add = builder
+  //  .create<func::CallOp>(builder.getUnknownLoc(), "my_mul",
+  //  builder.getF32Type(), ValueRange{c1, c2}) ->getResult(0);
+  //   Value sum = builder.create<arith::AddFOp>(builder.getUnknownLoc(), c1,
+  //   c2);
 
 #ifdef PRINT
   // Print mul result
@@ -213,8 +216,8 @@ func::FuncOp createMLPAddFunction(MLIRContext &ctx,
   return func;
 }
 
-func::FuncOp createMLPTESTFunction(MLIRContext &ctx,
-                                   ModuleOp module) { // WORKING ON THIS
+func::FuncOp createMLPLinearFunction(MLIRContext &ctx,
+                                     ModuleOp module) { // WORKING ON THIS
   OpBuilder builder(&ctx);
   Location loc = builder.getUnknownLoc();
 
@@ -225,8 +228,7 @@ func::FuncOp createMLPTESTFunction(MLIRContext &ctx,
   auto funcType = builder.getFunctionType({}, {});
 
   auto func =
-      builder.create<func::FuncOp>(builder.getUnknownLoc(), "main",
-      funcType);
+      builder.create<func::FuncOp>(builder.getUnknownLoc(), "main", funcType);
 
   func.setVisibility(mlir::SymbolTable::Visibility::Public);
 
@@ -245,20 +247,19 @@ func::FuncOp createMLPTESTFunction(MLIRContext &ctx,
       llvm::APFloat(2.0)};
 
   int64_t N = vals1D.size();
-  auto tensor1DTy = RankedTensorType::get({1,N}, f64); // Batch is 1
-  //auto tensor1DTy = RankedTensorType::get({1,N}, f64); // Batch is 1
+  auto tensor1DTy = RankedTensorType::get({1, N}, f64); // Batch is 1
+  // auto tensor1DTy = RankedTensorType::get({1,N}, f64); // Batch is 1
   auto denseAttr1D = mlir::DenseElementsAttr::get(tensor1DTy, vals1D);
-  Value c1D =builder.create<mlp::ConstantOp>(loc, tensor1DTy, denseAttr1D);
+  Value c1D = builder.create<mlp::ConstantOp>(loc, tensor1DTy, denseAttr1D);
 
   auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals1);
   auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals2);
 
-  Value c1 = builder.create<mlp::ConstantOp>(loc, rankedtensorfTy,
-  denseAttr1); Value c2 = builder.create<mlp::ConstantOp>(loc,
-  rankedtensorfTy, denseAttr2);
-  // builder.create<mlp::PrintOp>(loc, c1);
-  // builder.create<mlp::PrintOp>(loc, c2);
-  Value lin = builder.create<mlp::AddOp>(loc, rankedtensorfTy, c1, c2);
+  Value c1 = builder.create<mlp::ConstantOp>(loc, rankedtensorfTy, denseAttr1);
+  Value c2 = builder.create<mlp::ConstantOp>(loc, rankedtensorfTy, denseAttr2);
+  builder.create<mlp::PrintOp>(loc, c1);
+  builder.create<mlp::PrintOp>(loc, c2);
+  Value lin = builder.create<mlp::LinearOp>(loc, rankedtensorfTy, c1, c2);
 
   builder.create<mlp::PrintOp>(loc, lin);
 
@@ -287,7 +288,8 @@ func::FuncOp createMLPTESTFunction(MLIRContext &ctx,
 //   auto funcType = builder.getFunctionType({}, {});
 
 //   auto func =
-//       builder.create<func::FuncOp>(builder.getUnknownLoc(), "main", funcType);
+//       builder.create<func::FuncOp>(builder.getUnknownLoc(), "main",
+//       funcType);
 
 //   func.setVisibility(mlir::SymbolTable::Visibility::Public);
 
@@ -337,7 +339,8 @@ func::FuncOp createMLPTESTFunction(MLIRContext &ctx,
 //   // Value c1 = builder.create<mlp::ConstantOp>(loc, rankedtensor32Ty,
 //   // denseAttr1);
 
-//   // Value c2 = builder.create<tosa::ConstOp>(loc, rankedtensorTy, denseAttr2);
+//   // Value c2 = builder.create<tosa::ConstOp>(loc, rankedtensorTy,
+//   denseAttr2);
 
 //   // Value add = builder.create<tosa::AddOp>(loc, rankedtensorTy, c1, c2);
 
