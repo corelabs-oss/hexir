@@ -59,25 +59,25 @@ namespace toy {
 /// 'Type::TypeBase'. It takes as template parameters the concrete type
 /// (StructType), the base class to use (Type), and the storage class
 /// (StructTypeStorage).
-class StructType : public mlir::Type::TypeBase<StructType, mlir::Type,
-                                               detail::StructTypeStorage> {
-public:
-  /// Inherit some necessary constructors from 'TypeBase'.
-  using Base::Base;
+// class StructType : public mlir::Type::TypeBase<StructType, mlir::Type,
+//                                                detail::StructTypeStorage> {
+// public:
+//   /// Inherit some necessary constructors from 'TypeBase'.
+//   using Base::Base;
 
-  /// Create an instance of a `StructType` with the given element types. There
-  /// *must* be atleast one element type.
-  static StructType get(llvm::ArrayRef<mlir::Type> elementTypes);
+//   /// Create an instance of a `StructType` with the given element types. There
+//   /// *must* be atleast one element type.
+//   static StructType get(llvm::ArrayRef<mlir::Type> elementTypes);
 
-  /// Returns the element types of this struct type.
-  llvm::ArrayRef<mlir::Type> getElementTypes();
+//   /// Returns the element types of this struct type.
+//   llvm::ArrayRef<mlir::Type> getElementTypes();
 
-  /// Returns the number of element type held by this struct.
-  size_t getNumElementTypes() { return getElementTypes().size(); }
+//   /// Returns the number of element type held by this struct.
+//   size_t getNumElementTypes() { return getElementTypes().size(); }
 
-  /// The name of this struct type.
-  static constexpr StringLiteral name = "toy.struct";
-};
+//   /// The name of this struct type.
+//   static constexpr StringLiteral name = "toy.struct";
+// };
 } // namespace toy
 } // namespace mlir
 

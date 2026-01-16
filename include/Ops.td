@@ -67,74 +67,73 @@ def Toy_Type : AnyTypeOf<[F64Tensor, Toy_StructType]>;
 // Here we provide the mnemonic and a list of traits for the operation. The
 // constant operation is marked as 'Pure' as it is a pure operation
 // and may be removed if dead.
-// def ConstantOp : Toy_Op<"constant",
-//     [ConstantLike, Pure,
-//      DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
-//   // Provide a summary and description for this operation. This can be used to
-//   // auto-generate documentation of the operations within our dialect.
-//   let summary = "constant";
-//   let description = [{
-//     Constant operation turns a literal into an SSA value. The data is attached
-//     to the operation as an attribute. For example:
+def ConstantOp : Toy_Op<"constant",
+    [ConstantLike, Pure]> {
+  // Provide a summary and description for this operation. This can be used to
+  // auto-generate documentation of the operations within our dialect.
+  let summary = "constant";
+  let description = [{
+    Constant operation turns a literal into an SSA value. The data is attached
+    to the operation as an attribute. For example:
 
-//     ```mlir
-//       %0 = toy.constant dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]>
-//                         : tensor<2x3xf64>
-//     ```
-//   }];
+    ```mlir
+      %0 = toy.constant dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]>
+                        : tensor<2x3xf64>
+    ```
+  }];
 
-//   // The constant operation takes an attribute as the only input.
-//   let arguments = (ins F64ElementsAttr:$value);
+  // The constant operation takes an attribute as the only input.
+  let arguments = (ins F64ElementsAttr:$value);
 
-//   // The constant operation returns a single value of TensorType.
-//   let results = (outs F64Tensor);
+  // The constant operation returns a single value of TensorType.
+  let results = (outs F64Tensor);
 
-//   // Indicate that the operation has a custom parser and printer method.
-//   let hasCustomAssemblyFormat = 1;
+  // Indicate that the operation has a custom parser and printer method.
+  let hasCustomAssemblyFormat = 1;
 
-//   // Add custom build methods for the constant operation. These method populates
-//   // the `state` that MLIR uses to create operations, i.e. these are used when
-//   // using `ConstantOp::create(builder, ...)`.
-//   let builders = [
-//     // Build a constant with a given constant tensor value.
-//     OpBuilder<(ins "DenseElementsAttr":$value), [{
-//       build($_builder, $_state, value.getType(), value);
-//     }]>,
+  // Add custom build methods for the constant operation. These method populates
+  // the `state` that MLIR uses to create operations, i.e. these are used when
+  // using `ConstantOp::create(builder, ...)`.
+  let builders = [
+    // Build a constant with a given constant tensor value.
+    OpBuilder<(ins "DenseElementsAttr":$value), [{
+      build($_builder, $_state, value.getType(), value);
+    }]>,
 
-//     // Build a constant with a given constant floating-point value.
-//     OpBuilder<(ins "double":$value)>
-//   ];
+    // Build a constant with a given constant floating-point value.
+    OpBuilder<(ins "double":$value)>
+  ];
 
-//   // Indicate that additional verification for this operation is necessary.
-//   let hasVerifier = 1;
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
 
-//   // Set the folder bit so that we can implement constant folders.
-//   let hasFolder = 1;
-// }
+  // Set the folder bit so that we can implement constant folders.
+  let hasFolder = 0;
+}
 
 //===----------------------------------------------------------------------===//
 // AddOp
 //===----------------------------------------------------------------------===//
 
-// def AddOp : Toy_Op<"add",
-//     [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
-//   let summary = "element-wise addition operation";
-//   let description = [{
-//     The "add" operation performs element-wise addition between two tensors.
-//     The shapes of the tensor operands are expected to match.
-//   }];
+def AddOp : Toy_Op<"add",
+    [Pure]> {
+  let summary = "element-wise addition operation";
+  let description = [{
+    The "add" operation performs element-wise addition between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
 
-//   let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);
-//   let results = (outs F64Tensor);
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);
+  let results = (outs F64Tensor);
 
-//   // Indicate that the operation has a custom parser and printer method.
-//   let hasCustomAssemblyFormat = 1;
+  // Indicate that the operation has a custom parser and printer method.
+  let hasCustomAssemblyFormat = 1;
 
-//   // Allow building an AddOp with from the two input operands.
-//   let builders = [
-//     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
-//   ];
-// }
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+}
 
 //===----------------------------------------------------------------------===//
 // CastOp

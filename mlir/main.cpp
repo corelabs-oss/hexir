@@ -419,10 +419,10 @@ int main() {
   mlir::OwningOpRef<mlir::ModuleOp> module =
       mlir::ModuleOp::create(mlir::UnknownLoc::get(&ctx));
 
-  createMainFunction(ctx, *module);
+  //createMainFunction(ctx, *module);
   // createAddFunction(ctx, *module);
-  // createMulFunction(ctx, *module);
-  // createMLPAddFunction(ctx, *module);
+  //createMulFunction(ctx, *module);
+  createMLPAddFunction(ctx, *module);
   // createMLPAddTOSAFunction(ctx, *module);
   // createMLPReluFunction(ctx, *module);
   // createMLPTESTFunction(ctx, *module);
