@@ -1,6 +1,5 @@
-# 🧠 MLP-MLIR  
-**An MLIR-based Compiler Infrastructure for Neural Networks**
-
+#
+**MLP-MLIR – An MLIR-based Compiler Infrastructure for Neural Networks**
 ![MLIR](https://img.shields.io/badge/MLIR-LLVM-blue)
 ![C++](https://img.shields.io/badge/C%2B%2B-17-green)
 ![Status](https://img.shields.io/badge/Status-Research%20Prototype-orange)
@@ -9,9 +8,11 @@
 
 ## 📌 Overview
 
-**MLP-MLIR** is an experimental compiler project built on **LLVM MLIR** that focuses on
-**neural network representation, transformation, and lowering** using modern compiler
-infrastructure.
+**MLP-MLIR** is an experimental compiler framework built on LLVM MLIR that focuses on neural network representation, transformation, and lowering. The project currently targets **Multi-Layer Perceptrons (MLPs)** and provides a foundation for future Transformer and LLM support.
+
+#**MLP-MLIR** is an experimental compiler project built on **LLVM MLIR** that focuses on
+#**neural network representation, transformation, and lowering** using modern compiler
+#infrastructure.
 
 The current implementation targets **Multi-Layer Perceptrons (MLPs)** and demonstrates:
 
