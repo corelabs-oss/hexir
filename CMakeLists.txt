@@ -1,12 +1,11 @@
 cmake_minimum_required(VERSION 3.13.4)
-project(standalone_mlir LANGUAGES CXX C)
+project(mlp_mlir LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
 set(LLVM_DIR "/home/hamza/Repos/llvm-project/build/lib/cmake/llvm")
 set(MLIR_DIR "/home/hamza/Repos/llvm-project/build/lib/cmake/mlir")
-
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -33,28 +32,28 @@ add_definitions(${LLVM_DEFINITIONS})
 
 add_subdirectory(include)
 
-set(LLVM_TARGET_DEFINITIONS mlir/ToyCombine.td)
-mlir_tablegen(ToyCombine.inc -gen-rewriters)
+set(LLVM_TARGET_DEFINITIONS mlir/MlpCombine.td)
+mlir_tablegen(Combine.inc -gen-rewriters)
 add_public_tablegen_target(CombineIncGen)
 
 
 file(
   GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/mlir/*.cpp"
 )
-add_executable(standalone_mlir ${CCMLIR_SRC})
+add_executable(mlp_mlir ${CCMLIR_SRC})
 
 
-# add_dependencies(standalone_mlir Ops ShapeInfer CombineIncGen)
-add_dependencies(standalone_mlir ToyCh7OpsIncGen ToyCh7ShapeInferenceInterfaceIncGen CombineIncGen)
+# add_dependencies(mlp_mlir Ops ShapeInfer CombineIncGen)
+add_dependencies(mlp_mlir OpsIncGen ShapeInferenceInterfaceIncGen CombineIncGen)
 
-llvm_update_compile_flags(standalone_mlir)
+llvm_update_compile_flags(mlp_mlir)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 get_property(extension_libs GLOBAL PROPERTY MLIR_EXTENSION_LIBS)
 
 target_link_libraries(
-  standalone_mlir
+  mlp_mlir
   PRIVATE ${dialect_libs}
           ${conversion_libs}
           ${extension_libs}
@@ -112,4 +111,4 @@ target_link_libraries(
           MLIRSideEffectInterfaces
           LLVMSupport)
 
-install(TARGETS standalone_mlir RUNTIME DESTINATION bin)
+install(TARGETS mlp_mlir RUNTIME DESTINATION bin)

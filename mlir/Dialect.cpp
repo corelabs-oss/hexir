@@ -13,6 +13,7 @@
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/OperationSupport.h"
 #include "mlir/IR/TypeSupport.h"
@@ -253,17 +254,48 @@ void AddOp::print(OpAsmPrinter &p) { printBinaryOp(p, *this); }
 // LinearOp
 //===----------------------------------------------------------------------===//
 
+void mlir::mlp::LinearOp::build(OpBuilder &builder, OperationState &state,
+                                Value lhs, Value rhs) {
+
+  state.addTypes(lhs.getType());
+  state.addOperands({lhs});
+
+  // state.addOperands({lhs, rhs});
+  // state.addTypes(lhsType); // output type (simplified)
+}
+
 // void LinearOp::build(OpBuilder &builder, OperationState &state, Value input)
 // {
 //   state.addTypes(input.getType());
 //   state.addOperands({input});
 // }
 
-// ParseResult LinearOp::parse(OpAsmParser &parser, OperationState &result) {
-//   return parseBinaryOp(parser, result);
+ParseResult LinearOp::parse(OpAsmParser &parser, OperationState &result) {
+  return parseBinaryOp(parser, result);
+}
+
+void LinearOp::print(OpAsmPrinter &p) { printBinaryOp(p, *this); }
+
+// void LinearOp::print(OpAsmPrinter &printer) {
+//   printer << " " << getOperand(0) << ", " << getOperand(1) << " : "
+//           << getResult().getType();
 // }
 
-// void LinearOp::print(OpAsmPrinter &p) { printBinaryOp(p, *this); }
+// ParseResult LinearOp::parse(OpAsmParser &parser, OperationState &result) {
+//   OpAsmParser::OperandType input, weight;
+//   Type tensorType;
+
+//   if (parser.parseOperand(input) || parser.parseComma() ||
+//       parser.parseOperand(weight) || parser.parseColonType(tensorType))
+//     return failure();
+
+//   if (parser.resolveOperand(input, tensorType, result.operands) ||
+//       parser.resolveOperand(weight, tensorType, result.operands))
+//     return failure();
+
+//   result.addTypes(tensorType);
+//   return success();
+// }
 
 //===----------------------------------------------------------------------===//
 // ReluOp
@@ -444,7 +476,13 @@ mlir::LogicalResult ConstantOp::verify() {
   return verifyConstantForType(getResult().getType(), getValue(), *this);
 }
 
-// LogicalResult
+// OpFoldResult ConstantOp::fold(ConstantOpAdaptor adaptor) {
+//     // The 'adaptor' allows you to access the attributes of the op
+//     // in a type-safe way during folding.
+//     return adaptor.getValue();
+// }
+
+// mlir::LogicalResult
 // ConstantOp::fold(ConstantOpGenericAdaptor<llvm::ArrayRef<Attribute>> adaptor,
 //                  SmallVectorImpl<OpFoldResult> &results) {
 

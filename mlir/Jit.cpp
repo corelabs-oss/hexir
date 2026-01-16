@@ -1,5 +1,7 @@
+#include "Jit.h"
 #include "Dialect.h"
 #include "Passes.h"
+
 #include "mlir/Dialect/Affine/Transforms/Passes.h"
 #include "mlir/Dialect/Func/Extensions/AllExtensions.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -33,9 +35,9 @@
 #include <string>
 #include <system_error>
 #include <utility>
-namespace jit
-{
-static int runJit(mlir::ModuleOp module) {
+
+namespace jit {
+ int runJit(mlir::ModuleOp module) {
 
   int enableOpt = false;
 
@@ -71,4 +73,4 @@ static int runJit(mlir::ModuleOp module) {
   return 0;
 }
 
-}
+} // namespace jit

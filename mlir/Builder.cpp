@@ -34,7 +34,7 @@ using namespace mlir;
 // using namespace dbs;
 using namespace mlir::mlp;
 
-namespace builder1 {
+namespace builder {
 func::FuncOp createMainFunction(MLIRContext &ctx, ModuleOp module) {
 
   mlir::OpBuilder builder(&ctx);
@@ -213,65 +213,65 @@ func::FuncOp createMLPAddFunction(MLIRContext &ctx,
   return func;
 }
 
-// func::FuncOp createMLPTESTFunction(MLIRContext &ctx,
-//                                    ModuleOp module) { // WORKING ON THIS
-//   OpBuilder builder(&ctx);
-//   Location loc = builder.getUnknownLoc();
+func::FuncOp createMLPTESTFunction(MLIRContext &ctx,
+                                   ModuleOp module) { // WORKING ON THIS
+  OpBuilder builder(&ctx);
+  Location loc = builder.getUnknownLoc();
 
-//   auto f64 = builder.getF64Type();
+  auto f64 = builder.getF64Type();
 
-//   auto rankedtensorfTy = RankedTensorType::get({2, 2}, f64);
+  auto rankedtensorfTy = RankedTensorType::get({2, 2}, f64);
 
-//   auto funcType = builder.getFunctionType({}, {});
+  auto funcType = builder.getFunctionType({}, {});
 
-//   auto func =
-//       builder.create<func::FuncOp>(builder.getUnknownLoc(), "main",
-//       funcType);
+  auto func =
+      builder.create<func::FuncOp>(builder.getUnknownLoc(), "main",
+      funcType);
 
-//   func.setVisibility(mlir::SymbolTable::Visibility::Public);
+  func.setVisibility(mlir::SymbolTable::Visibility::Public);
 
-//   module.push_back(func);
-//   // Create entry block
-//   mlir::Block *entry = func.addEntryBlock();
-//   builder.setInsertionPointToStart(entry);
+  module.push_back(func);
+  // Create entry block
+  mlir::Block *entry = func.addEntryBlock();
+  builder.setInsertionPointToStart(entry);
 
-//   llvm::SmallVector<llvm::APFloat, 2> vals1D = {llvm::APFloat(3.0),
-//                                                 llvm::APFloat(1.0)};
-//   llvm::SmallVector<llvm::APFloat, 2> vals1 = {
-//       llvm::APFloat(3.0), llvm::APFloat(1.0), llvm::APFloat(2.0),
-//       llvm::APFloat(2.0)};
-//   llvm::SmallVector<llvm::APFloat, 2> vals2 = {
-//       llvm::APFloat(1.0), llvm::APFloat(5.0), llvm::APFloat(5.0),
-//       llvm::APFloat(2.0)};
+  llvm::SmallVector<llvm::APFloat, 2> vals1D = {llvm::APFloat(3.0),
+                                                llvm::APFloat(1.0)};
+  llvm::SmallVector<llvm::APFloat, 2> vals1 = {
+      llvm::APFloat(3.0), llvm::APFloat(1.0), llvm::APFloat(2.0),
+      llvm::APFloat(2.0)};
+  llvm::SmallVector<llvm::APFloat, 2> vals2 = {
+      llvm::APFloat(1.0), llvm::APFloat(5.0), llvm::APFloat(5.0),
+      llvm::APFloat(2.0)};
 
-//   int64_t N = vals1D.size();
-//   auto tensor1DTy = RankedTensorType::get({1,N}, f64); // Batch is 1
-//   //auto tensor1DTy = RankedTensorType::get({1,N}, f64); // Batch is 1
-//   auto denseAttr1D = mlir::DenseElementsAttr::get(tensor1DTy, vals1D);
-//   Value c1D =builder.create<mlp::ConstantOp>(loc, tensor1DTy, denseAttr1D);
+  int64_t N = vals1D.size();
+  auto tensor1DTy = RankedTensorType::get({1,N}, f64); // Batch is 1
+  //auto tensor1DTy = RankedTensorType::get({1,N}, f64); // Batch is 1
+  auto denseAttr1D = mlir::DenseElementsAttr::get(tensor1DTy, vals1D);
+  Value c1D =builder.create<mlp::ConstantOp>(loc, tensor1DTy, denseAttr1D);
 
-//   auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals1);
-//   auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals2);
+  auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals1);
+  auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals2);
 
-//   Value c1 = builder.create<mlp::ConstantOp>(loc, rankedtensorfTy,
-//   denseAttr1); Value c2 = builder.create<mlp::ConstantOp>(loc,
-//   rankedtensorfTy, denseAttr2);
-//   // builder.create<mlp::PrintOp>(loc, c1);
-//   // builder.create<mlp::PrintOp>(loc, c2);
-//   Value lin = builder.create<mlp::LinearOp>(loc, rankedtensorfTy, c1, c2);
+  Value c1 = builder.create<mlp::ConstantOp>(loc, rankedtensorfTy,
+  denseAttr1); Value c2 = builder.create<mlp::ConstantOp>(loc,
+  rankedtensorfTy, denseAttr2);
+  // builder.create<mlp::PrintOp>(loc, c1);
+  // builder.create<mlp::PrintOp>(loc, c2);
+  Value lin = builder.create<mlp::AddOp>(loc, rankedtensorfTy, c1, c2);
 
-//   // builder.create<mlp::PrintOp>(loc, lin);
+  builder.create<mlp::PrintOp>(loc, lin);
 
-//   // Value relu = builder.create<mlp::ReluOp>(loc, rankedtensorfTy, lin);
+  // Value relu = builder.create<mlp::ReluOp>(loc, rankedtensorfTy, lin);
 
-//   Value softmax = builder.create<mlp::SoftmaxOp>(loc, tensor1DTy, c1D);
+  // Value softmax = builder.create<mlp::SoftmaxOp>(loc, tensor1DTy, c1D);
 
-//   // builder.create<mlp::PrintOp>(loc, relu);
+  // builder.create<mlp::PrintOp>(loc, relu);
 
-//   builder.create<func::ReturnOp>(loc);
+  builder.create<func::ReturnOp>(loc);
 
-//   return func;
-// }
+  return func;
+}
 
 // func::FuncOp createMLPAddTOSAFunction(MLIRContext &ctx,
 //                                       ModuleOp module) { // WORKING ON THIS

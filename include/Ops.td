@@ -68,7 +68,7 @@ def MLP_Type : AnyTypeOf<[F64Tensor, MLP_StructType]>;
 // constant operation is marked as 'Pure' as it is a pure operation
 // and may be removed if dead.
 def ConstantOp : MLP_OP<"constant",
-    [ConstantLike, Pure]> {
+    [Pure]> {//      ConstantLike,Pure 
   // Provide a summary and description for this operation. This can be used to
   // auto-generate documentation of the operations within our dialect.
   let summary = "constant";
@@ -132,6 +132,53 @@ def AddOp : MLP_OP<"add",
   // Allow building an AddOp with from the two input operands.
   let builders = [
     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+}
+//===----------------------------------------------------------------------===//
+// LinearOp
+//===----------------------------------------------------------------------===//
+
+// def LinearOp : MLP_OP<"linear",
+//     [Pure]> {
+//   let summary = "linear (fully-connected) layer operation";
+//   let description = [{
+//     The "linear" operation represents a fully-connected layer.
+//     It computes the matrix multiplication of input and weight tensors,
+//     optionally adding a bias tensor. Shapes must be compatible for matmul:
+//     [batch, in_features] x [in_features, out_features] -> [batch, out_features].
+//   }];
+
+//   // Inputs: lhs=input tensor, rhs=weight tensor, optional bias
+//   let arguments = (ins F64Tensor:$input, F64Tensor:$weight);
+//   let results = (outs F64Tensor);
+
+//   // Indicate that the operation has a custom parser and printer method.
+//   let hasCustomAssemblyFormat = 1;
+
+//   // Builder for LinearOp
+//   let builders = [
+//     OpBuilder<(ins "Value":$input, "Value":$weight)>
+//   ];
+// }
+
+
+def LinearOp : MLP_OP<"linear",
+    [Pure]> {
+  let summary = "element-wise addition operation";
+  let description = [{
+    The "add" operation performs element-wise addition between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins F64Tensor:$input, F64Tensor:$weight);
+  let results = (outs F64Tensor);
+
+  // Indicate that the operation has a custom parser and printer method.
+  let hasCustomAssemblyFormat = 1;
+
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$input, "Value":$weight)>
   ];
 }
 
