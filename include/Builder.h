@@ -12,34 +12,26 @@
 
 using namespace mlir;
 
-namespace builder1 {
+namespace builder {
 
 // Basic examples
-// mlir::func::FuncOp createMainFunction(mlir::MLIRContext &ctx,
-//                                       mlir::ModuleOp module);
+func::FuncOp createMainFunction(MLIRContext &ctx, ModuleOp module);
 
 func::FuncOp createMainFunction(MLIRContext &ctx, ModuleOp module);
 
-mlir::func::FuncOp createAddFunction(mlir::MLIRContext &ctx,
-                                     mlir::ModuleOp module);
+func::FuncOp createAddFunction(MLIRContext &ctx, ModuleOp module);
 
-mlir::func::FuncOp createMulFunction(mlir::MLIRContext &ctx,
-                                     mlir::ModuleOp module);
+func::FuncOp createMulFunction(MLIRContext &ctx, ModuleOp module);
 
-// Toy / MLP examples
-mlir::func::FuncOp createMLPAddFunction(mlir::MLIRContext &ctx,
-                                        mlir::ModuleOp module);
+// MLP examples
+func::FuncOp createMLPAddFunction(MLIRContext &ctx, ModuleOp module);
 
-mlir::func::FuncOp createMLPAddTOSAFunction(mlir::MLIRContext &ctx,
-                                            mlir::ModuleOp module);
+// func::FuncOp createMLPAddTOSAFunction(MLIRContext &ctx, ModuleOp module);
 
-mlir::func::FuncOp createMLPReluFunction(mlir::MLIRContext &ctx,
-                                         mlir::ModuleOp module);
+func::FuncOp createMLPReluFunction(MLIRContext &ctx, ModuleOp module);
 
-// (Optional / commented-out in cpp)
-// mlir::func::FuncOp createMLPTESTFunction(mlir::MLIRContext &ctx,
-//                                          mlir::ModuleOp module);
+func::FuncOp createMLPTESTFunction(MLIRContext &ctx, ModuleOp module);
 
-} // namespace builder1
+} // namespace builder
 
 #endif // TOY_BUILDER_H
