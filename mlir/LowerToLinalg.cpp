@@ -32,9 +32,9 @@
 
 // namespace {
 
-// // //===----------------------------------------------------------------------===//
-// // // MLPTolinalg RewritePatterns: Constant operations
-// // //===----------------------------------------------------------------------===//
+// //===----------------------------------------------------------------------===//
+// // MLPTolinalg RewritePatterns: Constant operations
+// //===----------------------------------------------------------------------===//
 
 // struct ConstantOpToArith : public OpConversionPattern<mlp::ConstantOp> {
 //   using OpConversionPattern::OpConversionPattern;
@@ -123,7 +123,7 @@
 //     // Build indexing maps
 //     // ------------------------------------------------------------
 //     auto identity = rewriter.getMultiDimIdentityMap(resultTy.getRank());
-//     //DBS_PRINT(identity);
+//     // DBS_PRINT(identity);
 
 //     SmallVector<AffineMap, 2> indexingMaps = {identity, identity};
 //     // ------------------------------------------------------------
@@ -189,7 +189,7 @@
 //     SmallVector<AffineMap, 2> expMaps = {map1D, map1D};
 //     SmallVector<utils::IteratorType, 2> parallelIter = {
 //         utils::IteratorType::parallel, utils::IteratorType::parallel};
-//     //DBS_PRINT(expMaps[0] << expMaps[1] );
+//     // DBS_PRINT(expMaps[0] << expMaps[1] );
 //     auto expOp = rewriter.create<linalg::GenericOp>(
 //         loc, resultTy, ValueRange{input}, ValueRange{initVec}, expMaps,
 //         parallelIter, [&](OpBuilder &b, Location loc, ValueRange args) {
@@ -308,6 +308,6 @@
 // //
 // //===----------------------------------------------------------------------===//
 
-// std::unique_ptr<Pass> mlir::dbs::createLowerToLinalgPass() {
+// std::unique_ptr<Pass> mlir::mlp::createLowerToLinalgPass() {
 //   return std::make_unique<MLPToLinalgLoweringPass>();
 // }
