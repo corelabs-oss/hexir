@@ -32,13 +32,13 @@ add_definitions(${LLVM_DEFINITIONS})
 
 add_subdirectory(include)
 
-set(LLVM_TARGET_DEFINITIONS mlir/MlpCombine.td)
+set(LLVM_TARGET_DEFINITIONS src/MlpCombine.td)
 mlir_tablegen(Combine.inc -gen-rewriters)
 add_public_tablegen_target(CombineIncGen)
 
 
 file(
-  GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/mlir/*.cpp"
+  GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
 add_executable(mlp_mlir ${CCMLIR_SRC})
 
