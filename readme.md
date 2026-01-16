@@ -89,7 +89,4 @@ This makes it ideal for **machine learning compilers** that must evolve across:
 - Accelerator targets
 - Backend-specific optimization passes
 
----
-
-## 📁 Project Structure
 
