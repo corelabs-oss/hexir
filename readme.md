@@ -7,7 +7,7 @@
 
 ---
 
-## 📌 Overview
+## Overview
 
 **MLP-MLIR** is an experimental compiler framework built on LLVM MLIR that focuses on neural network representation, transformation, and lowering. The project currently targets **Multi-Layer Perceptrons (MLPs)** and provides a foundation for future Transformer and LLM support.
 
@@ -22,7 +22,7 @@ The project is designed with a **long-term roadmap** toward **Transformers, Larg
 
 ---
 
-## 🎯 Goals
+## Goals
 
 - ✅ Provide a clean MLIR-based representation for **MLP workloads**
 - ✅ Experiment with **custom neural network dialect extensions**
@@ -33,7 +33,7 @@ The project is designed with a **long-term roadmap** toward **Transformers, Larg
 
 ---
 
-## 🧩 Why MLIR?
+## Why MLIR?
 
 MLIR provides:
 - Multi-level abstraction (tensor → linalg → LLVM)
@@ -48,14 +48,14 @@ This makes it ideal for **machine learning compilers** that must evolve across:
 
 ---
 
-## 🧠 Current Capabilities
+## Current Capabilities
 
 ### Implemented
-- 🧱 MLP-style operations (Add, Mul, ReLU)
-- 🧮 Tensor constants and elementwise ops
-- 🖨️ Print operations for debugging
-- 🏗️ MLIR IR construction via C++ builders
-- ⚙️ Standalone MLIR driver
+- MLP-style operations (Add, Mul, ReLU)
+- Tensor constants and elementwise ops
+- Print operations for debugging
+- MLIR IR construction via C++ builders
+- Standalone MLIR driver
 
 ### In Progress
 - Shape-aware ops
@@ -65,7 +65,7 @@ This makes it ideal for **machine learning compilers** that must evolve across:
 
 ---
 
-## 🔮 Roadmap
+## Roadmap
 
 ### Phase 1 — MLP Foundations (Current)
 - Custom ops
@@ -88,5 +88,3 @@ This makes it ideal for **machine learning compilers** that must evolve across:
 - GPU (NVVM / ROCm)
 - Accelerator targets
 - Backend-specific optimization passes
-
-
