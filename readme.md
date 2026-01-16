@@ -11,10 +11,6 @@
 
 **MLP-MLIR** is an experimental compiler framework built on LLVM MLIR that focuses on neural network representation, transformation, and lowering. The project currently targets **Multi-Layer Perceptrons (MLPs)** and provides a foundation for future Transformer and LLM support.
 
-#**MLP-MLIR** is an experimental compiler project built on **LLVM MLIR** that focuses on
-#**neural network representation, transformation, and lowering** using modern compiler
-#infrastructure.
-
 The current implementation targets **Multi-Layer Perceptrons (MLPs)** and demonstrates:
 
 - Programmatic construction of MLIR IR in C++
