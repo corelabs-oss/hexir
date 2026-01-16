@@ -1,4 +1,4 @@
-//===- Dialect.h - Dialect definition for the Toy IR ----------------------===//
+//===- Dialect.h - Dialect definition for the Mlp IR ----------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the IR Dialect for the Toy language.
+// This file implements the IR Dialect for the Mlp language.
 // See docs/Tutorials/Ch-2.md for more information.
 //
 //===----------------------------------------------------------------------===//
@@ -25,36 +25,36 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 
 namespace mlir {
-namespace toy {
+namespace mlp {
 
 namespace detail {
 
 struct StructTypeStorage;
 } // namespace detail
-} // namespace toy
+} // namespace mlp
 } // namespace mlir
 
-/// Include the auto-generated header file containing the declaration of the toy
+/// Include the auto-generated header file containing the declaration of the mlp
 /// dialect.
 #include "Dialect.h.inc"
 
 //===----------------------------------------------------------------------===//
-// Toy Operations
+// Mlp Operations
 //===----------------------------------------------------------------------===//
 
 /// Include the auto-generated header file containing the declarations of the
-/// toy operations.
+/// Mlp operations.
 #define GET_OP_CLASSES
 #include "Ops.h.inc"
 
 namespace mlir {
-namespace toy {
+namespace mlp {
 
 //===----------------------------------------------------------------------===//
-// Toy Types
+// Mlp Types
 //===----------------------------------------------------------------------===//
 
-/// This class defines the Toy struct type. It represents a collection of
+/// This class defines the Mlp struct type. It represents a collection of
 /// element types. All derived types in MLIR must inherit from the CRTP class
 /// 'Type::TypeBase'. It takes as template parameters the concrete type
 /// (StructType), the base class to use (Type), and the storage class
@@ -65,7 +65,8 @@ namespace toy {
 //   /// Inherit some necessary constructors from 'TypeBase'.
 //   using Base::Base;
 
-//   /// Create an instance of a `StructType` with the given element types. There
+//   /// Create an instance of a `StructType` with the given element types.
+//   There
 //   /// *must* be atleast one element type.
 //   static StructType get(llvm::ArrayRef<mlir::Type> elementTypes);
 
@@ -76,9 +77,9 @@ namespace toy {
 //   size_t getNumElementTypes() { return getElementTypes().size(); }
 
 //   /// The name of this struct type.
-//   static constexpr StringLiteral name = "toy.struct";
+//   static constexpr StringLiteral name = "Mlp.struct";
 // };
-} // namespace toy
+} // namespace mlp
 } // namespace mlir
 
 #endif // MLIR_TUTORIAL_MLP_DIALECT_H_

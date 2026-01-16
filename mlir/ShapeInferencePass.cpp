@@ -30,7 +30,7 @@
 #define DEBUG_TYPE "shape-inference"
 
 using namespace mlir;
-using namespace toy;
+using namespace mlp;
 
 /// Include the auto-generated definitions for the shape inference interfaces.
 #include "ShapeInferenceOpInterfaces.cpp.inc"
@@ -53,9 +53,9 @@ namespace {
 ///   3) If the worklist is empty, the algorithm succeeded.
 ///
 struct ShapeInferencePass
-    : public mlir::PassWrapper<ShapeInferencePass, OperationPass<toy::FuncOp>> {
+    : public mlir::PassWrapper<ShapeInferencePass, OperationPass<mlp::FuncOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ShapeInferencePass)
-  StringRef getArgument() const override { return "toy-shape-inference"; }
+  StringRef getArgument() const override { return "mlp-shape-inference"; }
 
   void runOnOperation() override {
     auto f = getOperation();
@@ -118,6 +118,6 @@ struct ShapeInferencePass
 } // namespace
 
 /// Create a Shape Inference pass.
-std::unique_ptr<mlir::Pass> mlir::toy::createShapeInferencePass() {
+std::unique_ptr<mlir::Pass> mlir::mlp::createShapeInferencePass() {
   return std::make_unique<ShapeInferencePass>();
 }

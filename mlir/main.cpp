@@ -1,4 +1,4 @@
-//===- toyc.cpp - The Toy Compiler ----------------------------------------===//
+//===- main.cpp - The Mlp Compiler ----------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the entry point for the Toy compiler.
+// This file implements the entry point for the Mlp compiler.
 //
 //===----------------------------------------------------------------------===//
 
@@ -30,6 +30,7 @@
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/Extensions/AllExtensions.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/Types.h"
 #include "mlir/InitAllDialects.h"
 // #include "mlir/Dialect/Affine/Passes.h"
 #include "mlir/Dialect/Affine/Transforms/Passes.h"
@@ -86,21 +87,21 @@
 #include <system_error>
 #include <utility>
 
-// using namespace toy;
+// using namespace mlp;
 namespace cl = llvm::cl;
 
 // static cl::opt<std::string> inputFilename(cl::Positional,
-//                                           cl::desc("<input toy file>"),
+//                                           cl::desc("<input mlp file>"),
 //                                           cl::init("-"),
 //                                           cl::value_desc("filename"));
 
 // namespace {
-// enum InputType { Toy, MLIR };
+// enum InputType { Mlp, MLIR };
 // } // namespace
 
 // static cl::opt<enum InputType> inputType(
-//     "x", cl::init(Toy), cl::desc("Decided the kind of output desired"),
-//     cl::values(clEnumValN(Toy, "toy", "load the input file as a Toy
+//     "x", cl::init(Mlp), cl::desc("Decided the kind of output desired"),
+//     cl::values(clEnumValN(Mlp, "mlp", "load the input file as a Mlp
 //     source.")), cl::values(clEnumValN(MLIR, "mlir",
 //                           "load the input file as an MLIR file")));
 
@@ -131,8 +132,8 @@ namespace cl = llvm::cl;
 
 // static cl::opt<bool> enableOpt("opt", cl::desc("Enable optimizations"));
 
-// /// Returns a Toy AST resulting from parsing the file or a nullptr on error.
-// static std::unique_ptr<toy::ModuleAST>
+// /// Returns a Mlp AST resulting from parsing the file or a nullptr on error.
+// static std::unique_ptr<mlp::ModuleAST>
 // parseInputFile(llvm::StringRef filename) {
 //   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrErr =
 //       llvm::MemoryBuffer::getFileOrSTDIN(filename);
@@ -148,7 +149,7 @@ namespace cl = llvm::cl;
 
 // static int loadMLIR(mlir::MLIRContext &context,
 //                     mlir::OwningOpRef<mlir::ModuleOp> &module) {
-//   // Handle '.toy' input to the compiler.
+//   // Handle '.mlp' input to the compiler.
 //   if (inputType != InputType::MLIR &&
 //       !llvm::StringRef(inputFilename).ends_with(".mlir")) {
 //     auto moduleAST = parseInputFile(inputFilename);
@@ -198,16 +199,16 @@ namespace cl = llvm::cl;
 //     // Now that there is only one function, we can infer the shapes of each
 //     of
 //     // the operations.
-//     mlir::OpPassManager &optPM = pm.nest<mlir::toy::FuncOp>();
+//     mlir::OpPassManager &optPM = pm.nest<mlir::mlp::FuncOp>();
 //     optPM.addPass(mlir::createCanonicalizerPass());
-//     optPM.addPass(mlir::toy::createShapeInferencePass());
+//     optPM.addPass(mlir::mlp::createShapeInferencePass());
 //     optPM.addPass(mlir::createCanonicalizerPass());
 //     optPM.addPass(mlir::createCSEPass());
 //   }
 
 //   if (isLoweringToAffine) {
-//     // Partially lower the toy dialect.
-//     pm.addPass(mlir::toy::createLowerToAffinePass());
+//     // Partially lower the mlp dialect.
+//     pm.addPass(mlir::mlp::createLowerToAffinePass());
 
 //     // Add a few cleanups post lowering.
 //     mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
@@ -222,8 +223,8 @@ namespace cl = llvm::cl;
 //   }
 
 //   if (isLoweringToLLVM) {
-//     // Finish lowering the toy IR to the LLVM dialect.
-//     pm.addPass(mlir::toy::createLowerToLLVMPass());
+//     // Finish lowering the mlp IR to the LLVM dialect.
+//     pm.addPass(mlir::mlp::createLowerToLLVMPass());
 //     // This is necessary to have line tables emitted and basic
 //     // debugger working. In the future we will add proper debug information
 //     // emission directly from our frontend.
@@ -237,7 +238,7 @@ namespace cl = llvm::cl;
 
 // static int dumpAST() {
 //   if (inputType == InputType::MLIR) {
-//     llvm::errs() << "Can't dump a Toy AST when the input is MLIR\n";
+//     llvm::errs() << "Can't dump a Mlp AST when the input is MLIR\n";
 //     return 5;
 //   }
 
@@ -334,7 +335,7 @@ namespace cl = llvm::cl;
 //  mlir::registerMLIRContextCLOptions();
 //  mlir::registerPassManagerCLOptions();
 
-// cl::ParseCommandLineOptions(argc, argv, "toy compiler\n");
+// cl::ParseCommandLineOptions(argc, argv, "mlp compiler\n");
 
 // if (emitAction == Action::DumpAST)
 //   return dumpAST();
@@ -346,7 +347,7 @@ namespace cl = llvm::cl;
 
 // mlir::MLIRContext context(registry);
 // // Load our Dialect in this MLIR Context.
-// context.getOrLoadDialect<mlir::toy::ToyDialect>();
+// context.getOrLoadDialect<mlir::mlp::MlpDialect>();
 
 // mlir::OwningOpRef<mlir::ModuleOp> module;
 // if (int error = loadAndProcessMLIR(context, module))
@@ -380,7 +381,7 @@ using namespace mlir;
 using namespace builder1;
 using namespace jit;
 // using namespace dbs;
-// using namespace toy;
+// using namespace mlp;
 
 int main() {
   // Register any command line options.
@@ -400,7 +401,6 @@ int main() {
               // mlir::cf::ControlFlowDialect,
               mlir::tosa::TosaDialect, bufferization::BufferizationDialect>();
 
-
   mlir::func::registerAllExtensions(registry);
   mlir::registerBuiltinDialectTranslation(registry);
   mlir::registerLLVMDialectTranslation(registry);
@@ -408,7 +408,7 @@ int main() {
 
   mlir::MLIRContext ctx(registry);
   // ctx.appendDialectRegistry(registry);
-  ctx.getOrLoadDialect<mlir::toy::ToyDialect>();
+  ctx.getOrLoadDialect<mlir::mlp::MLPDialect>();
 
   ctx.loadAllAvailableDialects();
 
@@ -419,10 +419,11 @@ int main() {
   mlir::OwningOpRef<mlir::ModuleOp> module =
       mlir::ModuleOp::create(mlir::UnknownLoc::get(&ctx));
 
-  //createMainFunction(ctx, *module);
-  // createAddFunction(ctx, *module);
-  //createMulFunction(ctx, *module);
+  // createMainFunction(ctx, *module);
+  //  createAddFunction(ctx, *module);
+  // createMulFunction(ctx, *module);
   createMLPAddFunction(ctx, *module);
+
   // createMLPAddTOSAFunction(ctx, *module);
   // createMLPReluFunction(ctx, *module);
   // createMLPTESTFunction(ctx, *module);
@@ -444,15 +445,15 @@ int main() {
   //   of
   //   // the operations.
 
-  //   mlir::OpPassManager &optPM = pm.nest<mlir::toy::FuncOp>();
+  //   mlir::OpPassManager &optPM = pm.nest<mlir::mlp::FuncOp>();
   //   optPM.addPass(mlir::createCanonicalizerPass());
-  //   optPM.addPass(mlir::toy::createShapeInferencePass());
+  //   optPM.addPass(mlir::mlp::createShapeInferencePass());
   //   optPM.addPass(mlir::createCanonicalizerPass());
   //   optPM.addPass(mlir::createCSEPass());
   // }
 
   // if (1) {
-  //   // Partially lower the toy dialect.
+  //   // Partially lower the mlp dialect.
   //   pm.addPass(mlir::dbs::createLowerToLinalgPass());
 
   //   mlir::bufferization::OneShotBufferizationOptions options;
@@ -480,7 +481,7 @@ int main() {
   // }
 
   // if (0) {
-  //   // Partially lower the toy dialect.
+  //   // Partially lower the mlp dialect.
   //   pm.addPass(mlir::dbs::createLowerToAffinePass());
 
   //   // Add a few cleanups post lowering.
@@ -496,7 +497,7 @@ int main() {
   // }
 
   // if (0) {
-  //   // Finish lowering the toy IR to the LLVM dialect.
+  //   // Finish lowering the mlp IR to the LLVM dialect.
   //   pm.addPass(mlir::mlp::createLowerToLLVMPass());
   //   // This is necessary to have line tables emitted and basic
   //   // debugger working. In the future we will add proper debug information

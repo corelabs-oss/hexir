@@ -1,4 +1,4 @@
-//===- Ops.td - Toy dialect operation definitions ----------*- tablegen -*-===//
+//===- Ops.td - MLP dialect operation definitions ----------*- tablegen -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Defines the operations of the Toy dialect.
+// Defines the operations of the MLP dialect.
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,14 +20,14 @@ include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "ShapeInferenceInterface.td"
 
-// Provide a definition of the 'toy' dialect in the ODS framework so that we
+// Provide a definition of the 'mlp' dialect in the ODS framework so that we
 // can define our operations.
-def Toy_Dialect : Dialect {
-  let name = "toy";
-  let cppNamespace = "::mlir::toy";
+def MLP_Dialect : Dialect {
+  let name = "mlp";
+  let cppNamespace = "::mlir::mlp";
 
   // We set this bit to generate a declaration of the `materializeConstant`
-  // method so that we can materialize constants for our toy operations.
+  // method so that we can materialize constants for our mlp operations.
   //let hasConstantMaterializer = 1; Original is 1
   let hasConstantMaterializer = 0;
 
@@ -37,37 +37,37 @@ def Toy_Dialect : Dialect {
 
 }
 
-// Base class for toy dialect operations. This operation inherits from the base
+// Base class for mlp dialect operations. This operation inherits from the base
 // `Op` class in OpBase.td, and provides:
 //   * The parent dialect of the operation.
 //   * The mnemonic for the operation, or the name without the dialect prefix.
 //   * A list of traits for the operation.
-class Toy_Op<string mnemonic, list<Trait> traits = []> :
-    Op<Toy_Dialect, mnemonic, traits>;
+class MLP_OP<string mnemonic, list<Trait> traits = []> :
+    Op<MLP_Dialect, mnemonic, traits>;
 
-// Provide a definition for the Toy StructType for use in ODS. This allows for
+// Provide a definition for the MLP StructType for use in ODS. This allows for
 // using StructType in a similar way to Tensor or MemRef. We use `DialectType`
-// to demarcate the StructType as belonging to the Toy dialect.
-def Toy_StructType :
-    DialectType<Toy_Dialect, CPred<"::llvm::isa<StructType>($_self)">,
-                "Toy struct type">;
+// to demarcate the StructType as belonging to the MLP dialect.
+def MLP_StructType :
+    DialectType<MLP_Dialect, CPred<"::llvm::isa<StructType>($_self)">,
+                "MLP struct type">;
 
-// Provide a definition of the types that are used within the Toy dialect.
-def Toy_Type : AnyTypeOf<[F64Tensor, Toy_StructType]>;
+// Provide a definition of the types that are used within the MLP dialect.
+def MLP_Type : AnyTypeOf<[F64Tensor, MLP_StructType]>;
 
 //===----------------------------------------------------------------------===//
-// Toy Operations
+// MLP Operations
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
-// We define a toy operation by inheriting from our base 'Toy_Op' class above.
+// We define a MLP operation by inheriting from our base 'MLP_OP' class above.
 // Here we provide the mnemonic and a list of traits for the operation. The
 // constant operation is marked as 'Pure' as it is a pure operation
 // and may be removed if dead.
-def ConstantOp : Toy_Op<"constant",
+def ConstantOp : MLP_OP<"constant",
     [ConstantLike, Pure]> {
   // Provide a summary and description for this operation. This can be used to
   // auto-generate documentation of the operations within our dialect.
@@ -77,7 +77,7 @@ def ConstantOp : Toy_Op<"constant",
     to the operation as an attribute. For example:
 
     ```mlir
-      %0 = toy.constant dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]>
+      %0 = MLP.constant dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]>
                         : tensor<2x3xf64>
     ```
   }];
@@ -115,7 +115,7 @@ def ConstantOp : Toy_Op<"constant",
 // AddOp
 //===----------------------------------------------------------------------===//
 
-def AddOp : Toy_Op<"add",
+def AddOp : MLP_OP<"add",
     [Pure]> {
   let summary = "element-wise addition operation";
   let description = [{
@@ -139,7 +139,7 @@ def AddOp : Toy_Op<"add",
 // CastOp
 //===----------------------------------------------------------------------===//
 
-// def CastOp : Toy_Op<"cast", [
+// def CastOp : MLP_OP<"cast", [
 //      DeclareOpInterfaceMethods<CastOpInterface>,
 //      DeclareOpInterfaceMethods<ShapeInferenceOpInterface>,
 //      Pure,
@@ -164,22 +164,22 @@ def AddOp : Toy_Op<"add",
 // FuncOp
 //===----------------------------------------------------------------------===//
 
-def FuncOp : Toy_Op<"func", [
+def FuncOp : MLP_OP<"func", [
     FunctionOpInterface, IsolatedFromAbove
   ]> {
   let summary = "user defined function operation";
   let description = [{
-    The "toy.func" operation represents a user defined function. These are
-    callable SSA-region operations that contain toy computations.
+    The "mlp.func" operation represents a user defined function. These are
+    callable SSA-region operations that contain mlp computations.
 
     Example:
 
     ```mlir
-    toy.func @main() {
-      %0 = toy.constant dense<5.500000e+00> : tensor<f64>
-      %1 = toy.reshape(%0 : tensor<f64>) to tensor<2x2xf64>
-      toy.print %1 : tensor<2x2xf64>
-      toy.return
+    mlp.func @main() {
+      %0 = mlp.constant dense<5.500000e+00> : tensor<f64>
+      %1 = mlp.reshape(%0 : tensor<f64>) to tensor<2x2xf64>
+      mlp.print %1 : tensor<2x2xf64>
+      mlp.return
     }
     ```
   }];
@@ -217,7 +217,7 @@ def FuncOp : Toy_Op<"func", [
 // GenericCallOp
 //===----------------------------------------------------------------------===//
 
-// def GenericCallOp : Toy_Op<"generic_call",
+// def GenericCallOp : MLP_OP<"generic_call",
 //     [DeclareOpInterfaceMethods<CallOpInterface>]> {
 //   let summary = "generic call operation";
 //   let description = [{
@@ -227,7 +227,7 @@ def FuncOp : Toy_Op<"func", [
 //     arguments expected by the callee. For example:
 
 //     ```mlir
-//      %4 = toy.generic_call @my_func(%1, %3)
+//      %4 = mlp.generic_call @my_func(%1, %3)
 //            : (tensor<2x3xf64>, tensor<2x3xf64>) -> tensor<*xf64>
 //     ```
 
@@ -239,14 +239,14 @@ def FuncOp : Toy_Op<"func", [
 //   // callee, and inputs for the call.
 //   let arguments = (ins
 //     FlatSymbolRefAttr:$callee,
-//     Variadic<Toy_Type>:$inputs,
+//     Variadic<MLP_Type>:$inputs,
 //     OptionalAttr<DictArrayAttr>:$arg_attrs,
 //     OptionalAttr<DictArrayAttr>:$res_attrs
 //   );
 
 //   // The generic call operation returns a single value of TensorType or
 //   // StructType.
-//   let results = (outs Toy_Type);
+//   let results = (outs MLP_Type);
 
 //   // Specialize assembly printing and parsing using a declarative format.
 //   let assemblyFormat = [{
@@ -264,7 +264,7 @@ def FuncOp : Toy_Op<"func", [
 // MulOp
 //===----------------------------------------------------------------------===//
 
-// def MulOp : Toy_Op<"mul",
+// def MulOp : MLP_OP<"mul",
 //     [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
 //   let summary = "element-wise multiplication operation";
 //   let description = [{
@@ -288,7 +288,7 @@ def FuncOp : Toy_Op<"func", [
 // PrintOp
 //===----------------------------------------------------------------------===//
 
-def PrintOp : Toy_Op<"print"> {
+def PrintOp : MLP_OP<"print"> {
   let summary = "print operation";
   let description = [{
     The "print" builtin operation prints a given input tensor, and produces
@@ -306,14 +306,14 @@ def PrintOp : Toy_Op<"print"> {
 // ReshapeOp
 //===----------------------------------------------------------------------===//
 
-// def ReshapeOp : Toy_Op<"reshape", [Pure]> {
+// def ReshapeOp : MLP_OP<"reshape", [Pure]> {
 //   let summary = "tensor reshape operation";
 //   let description = [{
 //     Reshape operation is transforming its input tensor into a new tensor with
 //     the same number of elements but different shapes. For example:
 
 //     ```mlir
-//        %0 = toy.reshape (%arg1 : tensor<10xf64>) to tensor<5x2xf64>
+//        %0 = mlp.reshape (%arg1 : tensor<10xf64>) to tensor<5x2xf64>
 //     ```
 //   }];
 
@@ -334,7 +334,7 @@ def PrintOp : Toy_Op<"print"> {
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
-// def ReturnOp : Toy_Op<"return", [Pure, HasParent<"FuncOp">,
+// def ReturnOp : MLP_OP<"return", [Pure, HasParent<"FuncOp">,
 //                                  Terminator]> {
 //   let summary = "return operation";
 //   let description = [{
@@ -344,16 +344,16 @@ def PrintOp : Toy_Op<"print"> {
 //     the operation. For example:
 
 //     ```mlir
-//       toy.func @foo() -> tensor<2xf64> {
+//       mlp.func @foo() -> tensor<2xf64> {
 //         ...
-//         toy.return %0 : tensor<2xf64>
+//         mlp.return %0 : tensor<2xf64>
 //       }
 //     ```
 //   }];
 
 //   // The return operation takes an optional input operand to return. This
 //   // value must match the return type of the enclosing function.
-//   let arguments = (ins Variadic<Toy_Type>:$input);
+//   let arguments = (ins Variadic<MLP_Type>:$input);
 
 //   // The return operation only emits the input in the format if it is present.
 //   let assemblyFormat = "($input^ `:` type($input))? attr-dict ";
@@ -376,14 +376,14 @@ def PrintOp : Toy_Op<"print"> {
 // StructAccessOp
 //===----------------------------------------------------------------------===//
 
-// def StructAccessOp : Toy_Op<"struct_access", [Pure]> {
+// def StructAccessOp : MLP_OP<"struct_access", [Pure]> {
 //   let summary = "struct access";
 //   let description = [{
 //     Access the Nth element of a value returning a struct type.
 //   }];
 
-//   let arguments = (ins Toy_StructType:$input, I64Attr:$index);
-//   let results = (outs Toy_Type:$output);
+//   let arguments = (ins MLP_StructType:$input, I64Attr:$index);
+//   let results = (outs MLP_Type:$output);
 
 //   let assemblyFormat = [{
 //     $input `[` $index `]` attr-dict `:` type($input) `->` type($output)
@@ -405,7 +405,7 @@ def PrintOp : Toy_Op<"print"> {
 // StructConstantOp
 //===----------------------------------------------------------------------===//
 
-// def StructConstantOp : Toy_Op<"struct_constant", [ConstantLike, Pure]> {
+// def StructConstantOp : MLP_OP<"struct_constant", [ConstantLike, Pure]> {
 //   let summary = "struct constant";
 //   let description = [{
 //     Constant operation turns a literal struct value into an SSA value. The data
@@ -413,14 +413,14 @@ def PrintOp : Toy_Op<"print"> {
 //     as an array of other constant values. For example:
 
 //     ```mlir
-//       %0 = toy.struct_constant [
+//       %0 = mlp.struct_constant [
 //         dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]> : tensor<2x3xf64>
-//       ] : !toy.struct<tensor<*xf64>>
+//       ] : !mlp.struct<tensor<*xf64>>
 //     ```
 //   }];
 
 //   let arguments = (ins ArrayAttr:$value);
-//   let results = (outs Toy_StructType:$output);
+//   let results = (outs MLP_StructType:$output);
 
 //   let assemblyFormat = "$value attr-dict `:` type($output)";
 
@@ -433,7 +433,7 @@ def PrintOp : Toy_Op<"print"> {
 // // TransposeOp
 // //===----------------------------------------------------------------------===//
 
-// def TransposeOp : Toy_Op<"transpose",
+// def TransposeOp : MLP_OP<"transpose",
 //     [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
 //   let summary = "transpose operation";
 

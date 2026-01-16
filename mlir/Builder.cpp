@@ -32,7 +32,7 @@
 
 using namespace mlir;
 // using namespace dbs;
-// using namespace mlir::toy;
+using namespace mlir::mlp;
 
 namespace builder1 {
 func::FuncOp createMainFunction(MLIRContext &ctx, ModuleOp module) {
@@ -196,17 +196,17 @@ func::FuncOp createMLPAddFunction(MLIRContext &ctx,
   auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorf64Ty, vals2);
 
   Value c1 =
-      builder.create<toy::ConstantOp>(loc, rankedtensorf64Ty, denseAttr1);
+      builder.create<mlp::ConstantOp>(loc, rankedtensorf64Ty, denseAttr1);
 
   Value c2 =
-      builder.create<toy::ConstantOp>(loc, rankedtensorf64Ty, denseAttr2);
+      builder.create<mlp::ConstantOp>(loc, rankedtensorf64Ty, denseAttr2);
 
-  Value add = builder.create<toy::AddOp>(loc, rankedtensorf64Ty, c1, c2);
-  // Value add = builder.create<toy::ReluOp>(loc, rankedtensorf64Ty, c1);
+  Value add = builder.create<mlp::AddOp>(loc, rankedtensorf64Ty, c1, c2);
+  // Value add = builder.create<mlp::ReluOp>(loc, rankedtensorf64Ty, c1);
 
-  //  builder.create<toy::PrintOp>(builder.getUnknownLoc(), c1);
-  //  builder.create<toy::PrintOp>(builder.getUnknownLoc(), c2);
-  builder.create<toy::PrintOp>(builder.getUnknownLoc(), add);
+  //  builder.create<mlp::PrintOp>(builder.getUnknownLoc(), c1);
+  //  builder.create<mlp::PrintOp>(builder.getUnknownLoc(), c2);
+  builder.create<mlp::PrintOp>(builder.getUnknownLoc(), add);
 
   builder.create<func::ReturnOp>(loc);
 
@@ -248,25 +248,25 @@ func::FuncOp createMLPAddFunction(MLIRContext &ctx,
 //   auto tensor1DTy = RankedTensorType::get({1,N}, f64); // Batch is 1
 //   //auto tensor1DTy = RankedTensorType::get({1,N}, f64); // Batch is 1
 //   auto denseAttr1D = mlir::DenseElementsAttr::get(tensor1DTy, vals1D);
-//   Value c1D =builder.create<toy::ConstantOp>(loc, tensor1DTy, denseAttr1D);
+//   Value c1D =builder.create<mlp::ConstantOp>(loc, tensor1DTy, denseAttr1D);
 
 //   auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals1);
 //   auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals2);
 
-//   Value c1 = builder.create<toy::ConstantOp>(loc, rankedtensorfTy,
-//   denseAttr1); Value c2 = builder.create<toy::ConstantOp>(loc,
+//   Value c1 = builder.create<mlp::ConstantOp>(loc, rankedtensorfTy,
+//   denseAttr1); Value c2 = builder.create<mlp::ConstantOp>(loc,
 //   rankedtensorfTy, denseAttr2);
-//   // builder.create<toy::PrintOp>(loc, c1);
-//   // builder.create<toy::PrintOp>(loc, c2);
-//   Value lin = builder.create<toy::LinearOp>(loc, rankedtensorfTy, c1, c2);
+//   // builder.create<mlp::PrintOp>(loc, c1);
+//   // builder.create<mlp::PrintOp>(loc, c2);
+//   Value lin = builder.create<mlp::LinearOp>(loc, rankedtensorfTy, c1, c2);
 
-//   // builder.create<toy::PrintOp>(loc, lin);
+//   // builder.create<mlp::PrintOp>(loc, lin);
 
-//   // Value relu = builder.create<toy::ReluOp>(loc, rankedtensorfTy, lin);
+//   // Value relu = builder.create<mlp::ReluOp>(loc, rankedtensorfTy, lin);
 
-//   Value softmax = builder.create<toy::SoftmaxOp>(loc, tensor1DTy, c1D);
+//   Value softmax = builder.create<mlp::SoftmaxOp>(loc, tensor1DTy, c1D);
 
-//   // builder.create<toy::PrintOp>(loc, relu);
+//   // builder.create<mlp::PrintOp>(loc, relu);
 
 //   builder.create<func::ReturnOp>(loc);
 
@@ -323,27 +323,27 @@ func::FuncOp createMLPAddFunction(MLIRContext &ctx,
 //   auto denseAttr5 = DenseElementsAttr::get(rankedtensor64Ty, attrs1);
 
 //   // Value c64 =
-//   //     builder.create<toy::ConstantOp>(loc, rankedtensor64Ty, denseAttr5);
+//   //     builder.create<mlp::ConstantOp>(loc, rankedtensor64Ty, denseAttr5);
 
 //   // // 2) cast f64 -> f32 (tensor-level)
 //   // Value c32 =
 //   //     builder.create<arith::TruncFOp>(loc, rankedtensor32Ty, c64);
 
 //   // // 3) use f32 result
-//   // builder.create<toy::PrintOp>(loc, c32);
+//   // builder.create<mlp::PrintOp>(loc, c32);
 
 //   /////////////////////////////
 
-//   // Value c1 = builder.create<toy::ConstantOp>(loc, rankedtensor32Ty,
+//   // Value c1 = builder.create<mlp::ConstantOp>(loc, rankedtensor32Ty,
 //   // denseAttr1);
 
 //   // Value c2 = builder.create<tosa::ConstOp>(loc, rankedtensorTy, denseAttr2);
 
 //   // Value add = builder.create<tosa::AddOp>(loc, rankedtensorTy, c1, c2);
 
-//   // builder.create<toy::PrintOp>(builder.getUnknownLoc(), c32);
-//   //   builder.create<toy::PrintOp>(builder.getUnknownLoc(), c22);
-//   //   builder.create<toy::PrintOp>(builder.getUnknownLoc(), add);
+//   // builder.create<mlp::PrintOp>(builder.getUnknownLoc(), c32);
+//   //   builder.create<mlp::PrintOp>(builder.getUnknownLoc(), c22);
+//   //   builder.create<mlp::PrintOp>(builder.getUnknownLoc(), add);
 
 //   auto t32 = RankedTensorType::get({2}, f32);
 //   auto t64 = RankedTensorType::get({2}, f64);
@@ -354,8 +354,8 @@ func::FuncOp createMLPAddFunction(MLIRContext &ctx,
 //     attrs64.push_back(builder.getFloatAttr(f64, v));
 
 //   auto dense32 = DenseElementsAttr::get(t64, attrs64);
-//   Value c32 = builder.create<toy::ConstantOp>(loc, t32, dense32);
-//   builder.create<toy::PrintOp>(builder.getUnknownLoc(), c32);
+//   Value c32 = builder.create<mlp::ConstantOp>(loc, t32, dense32);
+//   builder.create<mlp::PrintOp>(builder.getUnknownLoc(), c32);
 //   builder.create<func::ReturnOp>(loc);
 
 //   return func;
@@ -389,14 +389,14 @@ func::FuncOp createMLPAddFunction(MLIRContext &ctx,
 
 //   auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorTy, vals1);
 
-//   Value c11 = builder.create<toy::ConstantOp>(builder.getUnknownLoc(),
+//   Value c11 = builder.create<mlp::ConstantOp>(builder.getUnknownLoc(),
 //                                               rankedtensorTy, denseAttr1);
 
-//   Value relu = builder.create<toy::ReluOp>(builder.getUnknownLoc(), c11);
+//   Value relu = builder.create<mlp::ReluOp>(builder.getUnknownLoc(), c11);
 
-//   builder.create<toy::PrintOp>(builder.getUnknownLoc(), c11);
+//   builder.create<mlp::PrintOp>(builder.getUnknownLoc(), c11);
 
-//   builder.create<toy::PrintOp>(builder.getUnknownLoc(), relu);
+//   builder.create<mlp::PrintOp>(builder.getUnknownLoc(), relu);
 
 //   builder.create<func::ReturnOp>(builder.getUnknownLoc());
 

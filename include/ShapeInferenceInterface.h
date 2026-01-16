@@ -17,12 +17,12 @@
 #include "mlir/IR/OpDefinition.h"
 
 namespace mlir {
-namespace toy {
+namespace mlp {
 
 /// Include the auto-generated declarations.
 #include "ShapeInferenceOpInterfaces.h.inc"
 
-} // namespace toy
+} // namespace mlp
 } // namespace mlir
 
 #endif // MLIR_TUTORIAL_MLP_SHAPEINFERENCEINTERFACE_H_

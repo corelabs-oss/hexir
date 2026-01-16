@@ -20,7 +20,7 @@
 #include "llvm/Support/Casting.h"
 #include <cstddef>
 using namespace mlir;
-using namespace toy;
+using namespace mlp;
 
 // namespace {
 // /// Include the patterns defined in the Declarative Rewrite framework.
@@ -47,7 +47,7 @@ using namespace toy;
 // /// This is an example of a c++ rewrite pattern for the TransposeOp. It
 // /// optimizes the following scenario: transpose(transpose(x)) -> x
 // struct SimplifyRedundantTranspose : public mlir::OpRewritePattern<TransposeOp> {
-//   /// We register this pattern to match every toy.transpose in the IR.
+//   /// We register this pattern to match every mlp.transpose in the IR.
 //   /// The "benefit" is used by the framework to order the patterns and process
 //   /// them in order of profitability.
 //   SimplifyRedundantTranspose(mlir::MLIRContext *context)

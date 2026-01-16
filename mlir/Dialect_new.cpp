@@ -1,10 +1,11 @@
-//===- Dialect.cpp - Toy dialect (only add) -----------------------------===//
+//===- Dialect.cpp - mlp dialect (only add) -----------------------------===//
 //
-// Minimal Toy dialect implementation with a single AddOp.
+// Minimal mlp dialect implementation with a single AddOp.
 //
 //===----------------------------------------------------------------------===//
 
 #include "Dialect.h"
+
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -15,17 +16,20 @@
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/OperationSupport.h"
 #include "mlir/IR/TypeSupport.h"
+#include "mlir/IR/Types.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Interfaces/CallInterfaces.h"
 #include "mlir/Interfaces/FunctionImplementation.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/InliningUtils.h"
+
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
+
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -33,36 +37,36 @@
 #include <string>
 
 using namespace mlir;
-using namespace mlir::toy;
+using namespace mlir::mlp;
 
 /// Generated dialect definitions (MLPDialect, etc.).
 #include "Dialect.cpp.inc"
 
 //===----------------------------------------------------------------------===//
-// ToyInlinerInterface
+// MlpInlinerInterface
 //===----------------------------------------------------------------------===//
 
-/// This class defines the interface for handling inlining with Toy
+/// This class defines the interface for handling inlining with Mlp
 /// operations.
-struct ToyInlinerInterface : public DialectInlinerInterface {
+struct MlpInlinerInterface : public DialectInlinerInterface {
   using DialectInlinerInterface::DialectInlinerInterface;
 
   //===--------------------------------------------------------------------===//
   // Analysis Hooks
   //===--------------------------------------------------------------------===//
 
-  /// All call operations within toy can be inlined.
+  /// All call operations within mlp can be inlined.
   bool isLegalToInline(Operation *call, Operation *callable,
                        bool wouldBeCloned) const final {
     return true;
   }
 
-  /// All operations within toy can be inlined.
+  /// All operations within mlp can be inlined.
   bool isLegalToInline(Operation *, Region *, bool, IRMapping &) const final {
     return true;
   }
 
-  // All functions within toy can be inlined.
+  // All functions within mlp can be inlined.
   bool isLegalToInline(Region *, Region *, bool, IRMapping &) const final {
     return true;
   }
@@ -71,11 +75,11 @@ struct ToyInlinerInterface : public DialectInlinerInterface {
   // Transformation Hooks
   //===--------------------------------------------------------------------===//
 
-  /// Handle the given inlined terminator(toy.return) by replacing it with a new
+  /// Handle the given inlined terminator(mlp.return) by replacing it with a new
   /// operation as necessary.
   // void handleTerminator(Operation *op,
   // ArrayRef<Value> valuesToRepl) const final {
-  // // Only "toy.return" needs to be handled here.
+  // // Only "mlp.return" needs to be handled here.
   // auto returnOp = cast<ReturnOp>(op);
 
   // // Replace the values directly with the return operands.
@@ -102,26 +106,26 @@ struct ToyInlinerInterface : public DialectInlinerInterface {
 #undef GET_OP_CLASSES
 
 /// Dialect initialization: register AddOp only.
-void ToyDialect::initialize() {
+void MLPDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
 #include "Ops.cpp.inc"
       // #undef GET_OP_LIST
       >();
-  // addInterfaces<ToyInlinerInterface>();
+  // addInterfaces<MlpInlinerInterface>();
   // addTypes<StructType>();
 }
 
-// void ToyDialect::initialize() {
+// void MlpDialect::initialize() {
 // addOperations<
 // #define GET_OP_LIST
-// #include "toy/Ops.cpp.inc"
+// #include "Ops.cpp.inc"
 // >();
-// addInterfaces<ToyInlinerInterface>();
+// addInterfaces<MlpInlinerInterface>();
 // addTypes<StructType>();
 // }
 
-// mlir::Operation *ToyDialect::materializeConstant(mlir::OpBuilder &builder,
+// mlir::Operation *MlpDialect::materializeConstant(mlir::OpBuilder &builder,
 //                                                  mlir::Attribute value,
 //                                                  mlir::Type type,
 //                                                  mlir::Location loc) {
@@ -140,18 +144,18 @@ void ToyDialect::initialize() {
 // MLPDialect type parsing / printing
 //===----------------------------------------------------------------------===//
 
-mlir::Type ToyDialect::parseType(mlir::DialectAsmParser &parser) const {
+mlir::Type MLPDialect::parseType(mlir::DialectAsmParser &parser) const {
   // If you do NOT want custom types, just reject all:
   parser.emitError(parser.getCurrentLocation(),
-                   "toy dialect has no custom types");
+                   "mlp dialect has no custom types");
   return Type();
 }
 
-void ToyDialect::printType(mlir::Type type,
+void MLPDialect::printType(mlir::Type type,
                            mlir::DialectAsmPrinter &printer) const {
-  // We should never be asked to print a toy-specific type in this minimal
+  // We should never be asked to print a mlp-specific type in this minimal
   // setup.
-  llvm_unreachable("toy dialect has no custom types to print");
+  llvm_unreachable("mlp dialect has no custom types to print");
 }
 
 //===----------------------------------------------------------------------===//
@@ -162,7 +166,7 @@ void ToyDialect::printType(mlir::Type type,
 // mlir::Attribute value,
 // mlir::Type type,
 // mlir::Location loc) {
-// // If you do not use toy.constant anymore, just return nullptr.
+// // If you do not use mlp.constant anymore, just return nullptr.
 // return nullptr;
 // }
 
@@ -171,7 +175,7 @@ void ToyDialect::printType(mlir::Type type,
 //===----------------------------------------------------------------------===//
 
 namespace mlir {
-namespace toy {
+namespace mlp {
 
 static mlir::ParseResult parseBinaryOp(mlir::OpAsmParser &parser,
                                        mlir::OperationState &result) {
@@ -224,11 +228,17 @@ static void printBinaryOp(mlir::OpAsmPrinter &printer, mlir::Operation *op) {
 // AddOp
 //===----------------------------------------------------------------------===//
 
-void AddOp::build(OpBuilder &builder, OperationState &state, Value lhs,
-                  Value rhs) {
-  auto resultType = lhs.getType().cast<RankedTensorType>();
+// void AddOp::build(OpBuilder &builder, OperationState &state, Value lhs, Value
+// rhs) {
+//   auto resultType = lhs.getType().cast<RankedTensorType>();
+//   state.addOperands({lhs, rhs});
+//   state.addTypes(resultType);
+// }
+
+void AddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value lhs, mlir::Value rhs) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
   state.addOperands({lhs, rhs});
-  state.addTypes(resultType);
 }
 
 ParseResult AddOp::parse(OpAsmParser &parser, OperationState &result) {
@@ -237,7 +247,7 @@ ParseResult AddOp::parse(OpAsmParser &parser, OperationState &result) {
 
 void AddOp::print(OpAsmPrinter &p) { printBinaryOp(p, *this); }
 
-//void AddOp::inferShapes() { getResult().setType(getLhs().getType()); }
+// void AddOp::inferShapes() { getResult().setType(getLhs().getType()); }
 
 //===----------------------------------------------------------------------===//
 // LinearOp
@@ -474,17 +484,17 @@ mlir::LogicalResult ConstantOp::verify() {
 // return !input.hasRank() || !output.hasRank() || input == output;
 // }
 
-} // namespace toy
+} // namespace mlp
 } // namespace mlir
 
 //===----------------------------------------------------------------------===//
-// Toy Types
+// mlp Types
 //===----------------------------------------------------------------------===//
 
 // namespace mlir {
 // namespace mlp {
 // namespace detail {
-// /// This class represents the internal storage of the Toy `StructType`.
+// /// This class represents the internal storage of the mlp `StructType`.
 // struct StructTypeStorage : public mlir::TypeStorage {
 //   /// The `KeyTy` is a required type that provides an interface for the
 //   storage
@@ -565,7 +575,7 @@ mlir::LogicalResult ConstantOp::verify() {
 //   return getImpl()->elementTypes;
 // }
 
-/// Parse an instance of a type registered to the toy dialect.
+/// Parse an instance of a type registered to the mlp dialect.
 // mlir::Type MLPDialect::parseType(mlir::DialectAsmParser &parser) const {
 // // Parse a struct type in the following form:
 // // struct-type ::= `struct` `<` type (`,` type)* `>`

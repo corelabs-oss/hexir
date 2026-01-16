@@ -40,7 +40,7 @@
 // #include <string>
 
 // using namespace mlir;
-// using namespace mlir::toy;
+// using namespace mlir::mlp;
 
 // #include "Dialect.cpp.inc"
 
@@ -57,18 +57,18 @@
 //   // Analysis Hooks
 //   //===--------------------------------------------------------------------===//
 
-//   /// All call operations within toy can be inlined.
+//   /// All call operations within mlp can be inlined.
 //   bool isLegalToInline(Operation *call, Operation *callable,
 //                        bool wouldBeCloned) const final {
 //     return true;
 //   }
 
-//   /// All operations within toy can be inlined.
+//   /// All operations within mlp can be inlined.
 //   bool isLegalToInline(Operation *, Region *, bool, IRMapping &) const final {
 //     return true;
 //   }
 
-//   // All functions within toy can be inlined.
+//   // All functions within mlp can be inlined.
 //   bool isLegalToInline(Region *, Region *, bool, IRMapping &) const final {
 //     return true;
 //   }
@@ -77,10 +77,10 @@
 //   // Transformation Hooks
 //   //===--------------------------------------------------------------------===//
 
-//   /// Handle the given inlined terminator(toy.return) by replacing it with a new
+//   /// Handle the given inlined terminator(mlp.return) by replacing it with a new
 //   /// operation as necessary.
 //   // void handleTerminator(Operation *op, ValueRange valuesToRepl) const final {
-//   //   // Only "toy.return" needs to be handled here.
+//   //   // Only "mlp.return" needs to be handled here.
 //   //   auto returnOp = cast<ReturnOp>(op);
 
 //   //   // Replace the values directly with the return operands.
@@ -515,7 +515,7 @@
 // //===----------------------------------------------------------------------===//
 
 // namespace mlir {
-// namespace toy {
+// namespace mlp {
 // namespace detail {
 // /// This class represents the internal storage of the Toy `StructType`.
 // struct StructTypeStorage : public mlir::TypeStorage {
@@ -569,7 +569,7 @@
 //   llvm::ArrayRef<mlir::Type> elementTypes;
 // };
 // } // namespace detail
-// } // namespace toy
+// } // namespace mlp
 // } // namespace mlir
 
 // /// Create an instance of a `StructType` with the given element types. There
@@ -590,7 +590,7 @@
 // //   return getImpl()->elementTypes;
 // // }
 
-// /// Parse an instance of a type registered to the toy dialect.
+// /// Parse an instance of a type registered to the mlp dialect.
 // // mlir::Type ToyDialect::parseType(mlir::DialectAsmParser &parser) const {
 // //   // Parse a struct type in the following form:
 // //   //   struct-type ::= `struct` `<` type (`,` type)* `>`
@@ -631,10 +631,10 @@
 // //   return StructType::get(elementTypes);
 // // }
 
-// /// Print an instance of a type registered to the toy dialect.
+// /// Print an instance of a type registered to the mlp dialect.
 // // void ToyDialect::printType(mlir::Type type,
 // //                            mlir::DialectAsmPrinter &printer) const {
-// //   // Currently the only toy type is a struct type.
+// //   // Currently the only mlp type is a struct type.
 // //   StructType structType = llvm::cast<StructType>(type);
 
 // //   // Print the struct type according to the parser format.

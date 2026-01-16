@@ -93,6 +93,6 @@ static int runJit(mlir::ModuleOp module) {
   return 0;
 }
 
-} // namespace toy
+} // namespace jit
 
 #endif // MLP_PARSER_H
