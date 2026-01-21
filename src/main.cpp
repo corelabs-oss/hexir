@@ -133,9 +133,9 @@ static int loadMLIR(mlir::MLIRContext &context,
   context.getOrLoadDialect<mlir::func::FuncDialect>();
   context.getOrLoadDialect<mlir::mlp::MLPDialect>();
 
-  //createMLPLinearFunction(context, *module);
+  createMLPLinearFunction(context, *module);
 //createMLPAddFunction(context, *module); 
-createMLPReluFunction(context, *module);
+//createMLPReluFunction(context, *module);
   return 0;
 }
 

@@ -178,6 +178,60 @@ void MLPDialect::printType(mlir::Type type,
 namespace mlir {
 namespace mlp {
 
+  //===----------------------------------------------------------------------===//
+// Helpers for unary ops
+//===----------------------------------------------------------------------===//
+
+/// Parse a unary operation: one operand, one result.
+static mlir::ParseResult parseUnaryOp(mlir::OpAsmParser &parser,
+                                     mlir::OperationState &result) {
+  mlir::OpAsmParser::UnresolvedOperand operand;
+  mlir::Type type;
+  if (parser.parseOperand(operand) || 
+      parser.parseOptionalAttrDict(result.attributes) || 
+      parser.parseColonType(type))
+    return mlir::failure();
+
+  if (parser.resolveOperand(operand, type, result.operands))
+    return mlir::failure();
+  result.addTypes(type);
+  return mlir::success();
+}
+
+/// Print a unary operation
+static void printUnaryOp(mlir::OpAsmPrinter &printer, mlir::Operation *op) {
+  printer << " " << op->getOperand(0);
+  printer.printOptionalAttrDict(op->getAttrs());
+  printer << " : " << *op->result_type_begin();
+}
+
+/// Parse a unary op with an extra float attribute (for LeakyRelu, ELU, etc.)
+static mlir::ParseResult parseUnaryOpWithAttr(mlir::OpAsmParser &parser,
+                                              mlir::OperationState &result,
+                                              StringRef attrName) {
+  mlir::OpAsmParser::UnresolvedOperand operand;
+  mlir::Type type;
+  mlir::Attribute attr;
+  if (parser.parseOperand(operand) || 
+      parser.parseOptionalAttrDict(result.attributes) || 
+      parser.parseColonType(type) || 
+      parser.parseAttribute(attr, attrName, result.attributes))
+    return mlir::failure();
+
+  if (parser.resolveOperand(operand, type, result.operands))
+    return mlir::failure();
+  result.addTypes(type);
+  return mlir::success();
+}
+
+/// Print unary op with extra attribute
+static void printUnaryOpWithAttr(mlir::OpAsmPrinter &printer,
+                                 mlir::Operation *op, StringRef attrName) {
+  printer << " " << op->getOperand(0);
+  printer.printOptionalAttrDict(op->getAttrs());
+  printer << " : " << *op->result_type_begin();
+}
+
 static mlir::ParseResult parseBinaryOp(mlir::OpAsmParser &parser,
                                        mlir::OperationState &result) {
 
@@ -251,6 +305,25 @@ void AddOp::print(OpAsmPrinter &p) { printBinaryOp(p, *this); }
 // void AddOp::inferShapes() { getResult().setType(getLhs().getType()); }
 
 //===----------------------------------------------------------------------===//
+// LinearOp
+//===----------------------------------------------------------------------===//
+
+void mlir::mlp::LinearOp::build(OpBuilder &builder, OperationState &state,
+                                Value lhs, Value rhs) {
+
+  state.addTypes(lhs.getType());
+  state.addOperands({lhs, rhs});
+}
+
+ParseResult LinearOp::parse(OpAsmParser &parser, OperationState &result) {
+  return parseBinaryOp(parser, result);
+}
+
+void LinearOp::print(OpAsmPrinter &p) { printBinaryOp(p, *this); }
+
+
+
+//===----------------------------------------------------------------------===//
 // ReluOp
 //===----------------------------------------------------------------------===//
 
@@ -261,97 +334,137 @@ void ReluOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
 }
 
 ParseResult ReluOp::parse(OpAsmParser &parser, OperationState &result) {
-  return parseBinaryOp(parser, result);
+  return parseUnaryOp(parser, result);
 }
 
-void ReluOp::print(OpAsmPrinter &p) { printBinaryOp(p, *this); }
-
-// void AddOp::inferShapes() { getResult().setType(getLhs().getType()); }
+void ReluOp::print(OpAsmPrinter &p) { printUnaryOp(p, *this); }
 
 //===----------------------------------------------------------------------===//
-// LinearOp
+// LeakyReluOp
 //===----------------------------------------------------------------------===//
 
-void mlir::mlp::LinearOp::build(OpBuilder &builder, OperationState &state,
-                                Value lhs, Value rhs) {
-
-  state.addTypes(lhs.getType());
-  state.addOperands({lhs, rhs});
-
-  // state.addOperands({lhs, rhs});
-  // state.addTypes(lhsType); // output type (simplified)
+void LeakyReluOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Value input) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({input});
 }
 
-// void LinearOp::build(OpBuilder &builder, OperationState &state, Value input)
-// {
-//   state.addTypes(input.getType());
-//   state.addOperands({input});
-// }
-
-ParseResult LinearOp::parse(OpAsmParser &parser, OperationState &result) {
-  return parseBinaryOp(parser, result);
+ParseResult LeakyReluOp::parse(OpAsmParser &parser, OperationState &result) {
+  return parseUnaryOpWithAttr(parser, result, "alpha");
 }
 
-void LinearOp::print(OpAsmPrinter &p) { printBinaryOp(p, *this); }
-
-// void LinearOp::print(OpAsmPrinter &printer) {
-//   printer << " " << getOperand(0) << ", " << getOperand(1) << " : "
-//           << getResult().getType();
-// }
-
-// ParseResult LinearOp::parse(OpAsmParser &parser, OperationState &result) {
-//   OpAsmParser::OperandType input, weight;
-//   Type tensorType;
-
-//   if (parser.parseOperand(input) || parser.parseComma() ||
-//       parser.parseOperand(weight) || parser.parseColonType(tensorType))
-//     return failure();
-
-//   if (parser.resolveOperand(input, tensorType, result.operands) ||
-//       parser.resolveOperand(weight, tensorType, result.operands))
-//     return failure();
-
-//   result.addTypes(tensorType);
-//   return success();
-// }
+void LeakyReluOp::print(OpAsmPrinter &p) { printUnaryOpWithAttr(p, *this, "alpha"); }
 
 //===----------------------------------------------------------------------===//
-// ReluOp
+// EluOp
 //===----------------------------------------------------------------------===//
 
-// void ReluOp::build(OpBuilder &builder, OperationState &state, Value input) {
-//   state.addTypes(input.getType());
-//   state.addOperands({input});
-// }
+void EluOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value input) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({input});
+}
 
-// ParseResult ReluOp::parse(OpAsmParser &parser, OperationState &result) {
-//   return parseBinaryOp(parser, result);
-// }
+ParseResult EluOp::parse(OpAsmParser &parser, OperationState &result) {
+  return parseUnaryOpWithAttr(parser, result, "alpha");
+}
 
-// void ReluOp::print(OpAsmPrinter &p) { printBinaryOp(p, *this); }
+void EluOp::print(OpAsmPrinter &p) { printUnaryOpWithAttr(p, *this, "alpha"); }
+
+//===----------------------------------------------------------------------===//
+// SigmoidOp
+//===----------------------------------------------------------------------===//
+
+void SigmoidOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                      mlir::Value input) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({input});
+}
+
+ParseResult SigmoidOp::parse(OpAsmParser &parser, OperationState &result) {
+  return parseUnaryOp(parser, result);
+}
+
+void SigmoidOp::print(OpAsmPrinter &p) { printUnaryOp(p, *this); }
+
+//===----------------------------------------------------------------------===//
+// TanhOp
+//===----------------------------------------------------------------------===//
+
+void TanhOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                   mlir::Value input) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({input});
+}
+
+ParseResult TanhOp::parse(OpAsmParser &parser, OperationState &result) {
+  return parseUnaryOp(parser, result);
+}
+
+void TanhOp::print(OpAsmPrinter &p) { printUnaryOp(p, *this); }
 
 //===----------------------------------------------------------------------===//
 // SoftmaxOp
 //===----------------------------------------------------------------------===//
 
-// void SoftmaxOp::build(OpBuilder &builder, OperationState &state, Value input)
-// {
-//   state.addTypes(input.getType());
-//   state.addOperands({input});
-// }
+void SoftmaxOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                      mlir::Value input) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({input});
+}
 
-// ParseResult SoftmaxOp::parse(OpAsmParser &parser, OperationState &result) {
-//   return parseBinaryOp(parser, result);
-// }
+ParseResult SoftmaxOp::parse(OpAsmParser &parser, OperationState &result) {
+  return parseUnaryOp(parser, result);
+}
 
-// void SoftmaxOp::print(OpAsmPrinter &p) { printBinaryOp(p, *this); }
+void SoftmaxOp::print(OpAsmPrinter &p) { printUnaryOp(p, *this); }
 
-// LogicalResult SoftmaxOp::verify() {
-// auto t = getInput().getType().dyn_cast<RankedTensorType>();
-// if (!t || t.getRank() != 1)
-// return emitOpError("expects a 1D tensor");
-// return success();
-// }
+//===----------------------------------------------------------------------===//
+// GeluOp
+//===----------------------------------------------------------------------===//
+
+void GeluOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                   mlir::Value input) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({input});
+}
+
+ParseResult GeluOp::parse(OpAsmParser &parser, OperationState &result) {
+  return parseUnaryOp(parser, result);
+}
+
+void GeluOp::print(OpAsmPrinter &p) { printUnaryOp(p, *this); }
+
+//===----------------------------------------------------------------------===//
+// SwishOp
+//===----------------------------------------------------------------------===//
+
+void SwishOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                    mlir::Value input) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({input});
+}
+
+ParseResult SwishOp::parse(OpAsmParser &parser, OperationState &result) {
+  return parseUnaryOp(parser, result);
+}
+
+void SwishOp::print(OpAsmPrinter &p) { printUnaryOp(p, *this); }
+
+//===----------------------------------------------------------------------===//
+// MishOp
+//===----------------------------------------------------------------------===//
+
+void MishOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                   mlir::Value input) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({input});
+}
+
+ParseResult MishOp::parse(OpAsmParser &parser, OperationState &result) {
+  return parseUnaryOp(parser, result);
+}
+
+void MishOp::print(OpAsmPrinter &p) { printUnaryOp(p, *this); }
 
 //===----------------------------------------------------------------------===//
 // FuncOp
@@ -388,6 +501,8 @@ void FuncOp::print(mlir::OpAsmPrinter &p) {
       p, *this, /*isVariadic=*/false, getFunctionTypeAttrName(),
       getArgAttrsAttrName(), getResAttrsAttrName());
 }
+
+
 
 //===----------------------------------------------------------------------===//
 // ConstantOp
@@ -494,27 +609,6 @@ mlir::LogicalResult ConstantOp::verify() {
   return verifyConstantForType(getResult().getType(), getValue(), *this);
 }
 
-// OpFoldResult ConstantOp::fold(ConstantOpAdaptor adaptor) {
-//     // The 'adaptor' allows you to access the attributes of the op
-//     // in a type-safe way during folding.
-//     return adaptor.getValue();
-// }
-
-// mlir::LogicalResult
-// ConstantOp::fold(ConstantOpGenericAdaptor<llvm::ArrayRef<Attribute>> adaptor,
-//                  SmallVectorImpl<OpFoldResult> &results) {
-
-//   // A constant always folds to itself
-//   results.push_back(getValue());
-//   return success();
-// }
-
-// Infer the output shape of the ConstantOp,this is required by the shape
-// inference interface.
-
-// void ConstantOp::inferShapes() {
-//   getResult().setType(cast<TensorType>(getValue().getType()));
-// }
 
 //===----------------------------------------------------------------------===//
 // CastOp

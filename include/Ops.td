@@ -163,9 +163,9 @@ def ReluOp : MLP_OP<"relu",
   ];
 }
 
-//===----------------------------------------------------------------------===//
+// ===----------------------------------------------------------------------===//
 // SoftmaxOp
-//===----------------------------------------------------------------------===//
+// ===----------------------------------------------------------------------===//
 
 // def SoftmaxOp : MLP_OP<"softmax",
 //     [Pure]> {
@@ -188,33 +188,131 @@ def ReluOp : MLP_OP<"relu",
 //   ];
 // }
 
+
+// ===----------------------------------------------------------------------===//
+// LeakyReLU
+// ===----------------------------------------------------------------------===//
+def LeakyReluOp : MLP_OP<"leaky_relu", [Pure]> {
+  let summary = "leaky rectified linear unit";
+  let description = [{
+    Applies max(x, alpha * x) element-wise.
+  }];
+  let arguments = (ins F64Tensor:$input);
+  let results   = (outs F64Tensor:$result);
+  let hasCustomAssemblyFormat = 1;
+  let builders = [ OpBuilder<(ins "Value":$input)> ];
+
+
+}
+
+// ===----------------------------------------------------------------------===//
+// ELU
+// ===----------------------------------------------------------------------===//
+def EluOp : MLP_OP<"elu", [Pure]> {
+  let summary = "exponential linear unit";
+  let description = [{
+    Applies x if x > 0, otherwise alpha * (exp(x) - 1).
+  }];
+  let arguments = (ins F64Tensor:$input);
+  let results   = (outs F64Tensor:$result);
+  let hasCustomAssemblyFormat = 1;
+  let builders = [ OpBuilder<(ins "Value":$input)> ];
+
+}
+
+// ===----------------------------------------------------------------------===//
+// Sigmoid
+// ===----------------------------------------------------------------------===//
+def SigmoidOp : MLP_OP<"sigmoid", [Pure]> {
+  let summary = "sigmoid activation";
+  let description = [{
+    Applies 1 / (1 + exp(-x)) element-wise.
+  }];
+  let arguments = (ins F64Tensor:$input);
+  let results   = (outs F64Tensor:$result);
+  let hasCustomAssemblyFormat = 1;
+    let builders = [ OpBuilder<(ins "Value":$input)> ];
+
+}
+
+// ===----------------------------------------------------------------------===//
+// Tanh
+// ===----------------------------------------------------------------------===//
+def TanhOp : MLP_OP<"tanh", [Pure]> {
+  let summary = "hyperbolic tangent activation";
+  let description = [{
+    Applies tanh(x) element-wise.
+  }];
+  let arguments = (ins F64Tensor:$input);
+  let results   = (outs F64Tensor:$result);
+  let hasCustomAssemblyFormat = 1;
+    let builders = [ OpBuilder<(ins "Value":$input)> ];
+
+}
+
+// ===----------------------------------------------------------------------===//
+// Softmax
+// ===----------------------------------------------------------------------===//
+def SoftmaxOp : MLP_OP<"softmax", [Pure]> {
+  let summary = "softmax normalization operation";
+  let description = [{
+    Normalizes values along the last dimension so that they sum to 1.
+  }];
+  let arguments = (ins F64Tensor:$input);
+  let results   = (outs F64Tensor:$result);
+  let hasCustomAssemblyFormat = 1;
+    let builders = [ OpBuilder<(ins "Value":$input)> ];
+
+}
+
+// ===----------------------------------------------------------------------===//
+// GELU
+// ===----------------------------------------------------------------------===//
+def GeluOp : MLP_OP<"gelu", [Pure]> {
+  let summary = "Gaussian Error Linear Unit";
+  let description = [{
+    Applies GELU(x) = x * 0.5 * (1 + erf(x / sqrt(2))).
+  }];
+  let arguments = (ins F64Tensor:$input);
+  let results   = (outs F64Tensor:$result);
+  let hasCustomAssemblyFormat = 1;
+    let builders = [ OpBuilder<(ins "Value":$input)> ];
+
+}
+
+// ===----------------------------------------------------------------------===//
+// Swish
+// ===----------------------------------------------------------------------===//
+def SwishOp : MLP_OP<"swish", [Pure]> {
+  let summary = "swish activation";
+  let description = [{
+    Applies x * sigmoid(x) element-wise.
+  }];
+  let arguments = (ins F64Tensor:$input);
+  let results   = (outs F64Tensor:$result);
+  let hasCustomAssemblyFormat = 1;
+    let builders = [ OpBuilder<(ins "Value":$input)> ];
+
+}
+
+// ===----------------------------------------------------------------------===//
+// Mish
+// ===----------------------------------------------------------------------===//
+def MishOp : MLP_OP<"mish", [Pure]> {
+  let summary = "mish activation";
+  let description = [{
+    Applies x * tanh(softplus(x)) element-wise.
+  }];
+  let arguments = (ins F64Tensor:$input);
+  let results   = (outs F64Tensor:$result);
+  let hasCustomAssemblyFormat = 1;
+    let builders = [ OpBuilder<(ins "Value":$input)> ];
+
+}
+
 //===----------------------------------------------------------------------===//
 // LinearOp
 //===----------------------------------------------------------------------===//
-
-// def LinearOp : MLP_OP<"linear",
-//     [Pure]> {
-//   let summary = "linear (fully-connected) layer operation";
-//   let description = [{
-//     The "linear" operation represents a fully-connected layer.
-//     It computes the matrix multiplication of input and weight tensors,
-//     optionally adding a bias tensor. Shapes must be compatible for matmul:
-//     [batch, in_features] x [in_features, out_features] -> [batch, out_features].
-//   }];
-
-//   // Inputs: lhs=input tensor, rhs=weight tensor, optional bias
-//   let arguments = (ins F64Tensor:$input, F64Tensor:$weight);
-//   let results = (outs F64Tensor);
-
-//   // Indicate that the operation has a custom parser and printer method.
-//   let hasCustomAssemblyFormat = 1;
-
-//   // Builder for LinearOp
-//   let builders = [
-//     OpBuilder<(ins "Value":$input, "Value":$weight)>
-//   ];
-// }
-
 
 def LinearOp : MLP_OP<"linear",
     [Pure]> {
@@ -314,52 +412,6 @@ def FuncOp : MLP_OP<"func", [
   let skipDefaultBuilders = 1;
 }
 
-//===----------------------------------------------------------------------===//
-// GenericCallOp
-//===----------------------------------------------------------------------===//
-
-// def GenericCallOp : MLP_OP<"generic_call",
-//     [DeclareOpInterfaceMethods<CallOpInterface>]> {
-//   let summary = "generic call operation";
-//   let description = [{
-//     Generic calls represent calls to a user defined function that needs to
-//     be specialized for the shape of its arguments. The callee name is attached
-//     as a symbol reference via an attribute. The arguments list must match the
-//     arguments expected by the callee. For example:
-
-//     ```mlir
-//      %4 = mlp.generic_call @my_func(%1, %3)
-//            : (tensor<2x3xf64>, tensor<2x3xf64>) -> tensor<*xf64>
-//     ```
-
-//     This is only valid if a function named "my_func" exists and takes two
-//     arguments.
-//   }];
-
-//   // The generic call operation takes a symbol reference attribute as the
-//   // callee, and inputs for the call.
-//   let arguments = (ins
-//     FlatSymbolRefAttr:$callee,
-//     Variadic<MLP_Type>:$inputs,
-//     OptionalAttr<DictArrayAttr>:$arg_attrs,
-//     OptionalAttr<DictArrayAttr>:$res_attrs
-//   );
-
-//   // The generic call operation returns a single value of TensorType or
-//   // StructType.
-//   let results = (outs MLP_Type);
-
-//   // Specialize assembly printing and parsing using a declarative format.
-//   let assemblyFormat = [{
-//     $callee `(` $inputs `)` attr-dict `:` functional-type($inputs, results)
-//   }];
-
-//   // Add custom build methods for the generic call operation.
-//   let builders = [
-//     OpBuilder<(ins "Type":$result_type, "StringRef":$callee,
-//               "ArrayRef<Value>":$arguments)>
-//   ];
-// }
 
 //===----------------------------------------------------------------------===//
 // MulOp
@@ -431,104 +483,6 @@ def PrintOp : MLP_OP<"print"> {
 //   let results = (outs StaticShapeTensorOf<[F64]>);
 // }
 
-//===----------------------------------------------------------------------===//
-// ReturnOp
-//===----------------------------------------------------------------------===//
-
-// def ReturnOp : MLP_OP<"return", [Pure, HasParent<"FuncOp">,
-//                                  Terminator]> {
-//   let summary = "return operation";
-//   let description = [{
-//     The "return" operation represents a return operation within a function.
-//     The operation takes an optional operand and produces no results.
-//     The operand type must match the signature of the function that contains
-//     the operation. For example:
-
-//     ```mlir
-//       mlp.func @foo() -> tensor<2xf64> {
-//         ...
-//         mlp.return %0 : tensor<2xf64>
-//       }
-//     ```
-//   }];
-
-//   // The return operation takes an optional input operand to return. This
-//   // value must match the return type of the enclosing function.
-//   let arguments = (ins Variadic<MLP_Type>:$input);
-
-//   // The return operation only emits the input in the format if it is present.
-//   let assemblyFormat = "($input^ `:` type($input))? attr-dict ";
-
-//   // Allow building a ReturnOp with no return operand.
-//   let builders = [
-//     OpBuilder<(ins), [{ build($_builder, $_state, {}); }]>
-//   ];
-
-//   // Provide extra utility definitions on the c++ operation class definition.
-//   let extraClassDeclaration = [{
-//     bool hasOperand() { return getNumOperands() != 0; }
-//   }];
-
-//   // Indicate that additional verification for this operation is necessary.
-//   let hasVerifier = 1;
-// }
-
-//===----------------------------------------------------------------------===//
-// StructAccessOp
-//===----------------------------------------------------------------------===//
-
-// def StructAccessOp : MLP_OP<"struct_access", [Pure]> {
-//   let summary = "struct access";
-//   let description = [{
-//     Access the Nth element of a value returning a struct type.
-//   }];
-
-//   let arguments = (ins MLP_StructType:$input, I64Attr:$index);
-//   let results = (outs MLP_Type:$output);
-
-//   let assemblyFormat = [{
-//     $input `[` $index `]` attr-dict `:` type($input) `->` type($output)
-//   }];
-
-//   // Allow building a StructAccessOp with just a struct value and an index.
-//   let builders = [
-//     OpBuilder<(ins "Value":$input, "size_t":$index)>
-//   ];
-
-//   // Indicate that additional verification for this operation is necessary.
-//   let hasVerifier = 1;
-
-//   // Set the folder bit so that we can fold constant accesses.
-//   let hasFolder = 1;
-// }
-
-//===----------------------------------------------------------------------===//
-// StructConstantOp
-//===----------------------------------------------------------------------===//
-
-// def StructConstantOp : MLP_OP<"struct_constant", [ConstantLike, Pure]> {
-//   let summary = "struct constant";
-//   let description = [{
-//     Constant operation turns a literal struct value into an SSA value. The data
-//     is attached to the operation as an attribute. The struct constant is encoded
-//     as an array of other constant values. For example:
-
-//     ```mlir
-//       %0 = mlp.struct_constant [
-//         dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]> : tensor<2x3xf64>
-//       ] : !mlp.struct<tensor<*xf64>>
-//     ```
-//   }];
-
-//   let arguments = (ins ArrayAttr:$value);
-//   let results = (outs MLP_StructType:$output);
-
-//   let assemblyFormat = "$value attr-dict `:` type($output)";
-
-//   // Indicate that additional verification for this operation is necessary.
-//   let hasVerifier = 1;
-//   let hasFolder = 1;
-// }
 
 // //===----------------------------------------------------------------------===//
 // // TransposeOp
