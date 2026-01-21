@@ -19,13 +19,13 @@
 using namespace mlir;
 using namespace mlp;
 
-// namespace {
-// /// Include the patterns defined in the Declarative Rewrite framework.
-// #include "ToyCombine.inc"
-// } // namespace
+namespace {
+/// Include the patterns defined in the Declarative Rewrite framework.
+#include "MlpCombine.inc"
+} // namespace
 
 // /// Fold constants.
-// OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) { return getValue(); }
+OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) { return getValue(); }
 
 // /// Fold struct constants.
 // OpFoldResult StructConstantOp::fold(FoldAdaptor adaptor) { return getValue(); }

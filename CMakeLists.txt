@@ -33,7 +33,7 @@ add_definitions(${LLVM_DEFINITIONS})
 add_subdirectory(include)
 
 set(LLVM_TARGET_DEFINITIONS src/MlpCombine.td)
-mlir_tablegen(Combine.inc -gen-rewriters)
+mlir_tablegen(MlpCombine.inc -gen-rewriters)
 add_public_tablegen_target(CombineIncGen)
 
 

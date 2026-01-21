@@ -251,6 +251,24 @@ void AddOp::print(OpAsmPrinter &p) { printBinaryOp(p, *this); }
 // void AddOp::inferShapes() { getResult().setType(getLhs().getType()); }
 
 //===----------------------------------------------------------------------===//
+// ReluOp
+//===----------------------------------------------------------------------===//
+
+void ReluOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                   mlir::Value input) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({input});
+}
+
+ParseResult ReluOp::parse(OpAsmParser &parser, OperationState &result) {
+  return parseBinaryOp(parser, result);
+}
+
+void ReluOp::print(OpAsmPrinter &p) { printBinaryOp(p, *this); }
+
+// void AddOp::inferShapes() { getResult().setType(getLhs().getType()); }
+
+//===----------------------------------------------------------------------===//
 // LinearOp
 //===----------------------------------------------------------------------===//
 
@@ -258,7 +276,7 @@ void mlir::mlp::LinearOp::build(OpBuilder &builder, OperationState &state,
                                 Value lhs, Value rhs) {
 
   state.addTypes(lhs.getType());
-  state.addOperands({lhs});
+  state.addOperands({lhs, rhs});
 
   // state.addOperands({lhs, rhs});
   // state.addTypes(lhsType); // output type (simplified)
