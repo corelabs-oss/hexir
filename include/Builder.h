@@ -5,11 +5,6 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
 
-// namespace mlir {
-// class MLIRContext;
-// class ModuleOp;
-// } // namespace mlir
-
 using namespace mlir;
 
 namespace builder {
@@ -25,8 +20,6 @@ func::FuncOp createMulFunction(MLIRContext &ctx, ModuleOp module);
 
 // MLP examples
 func::FuncOp createMLPAddFunction(MLIRContext &ctx, ModuleOp module);
-
-// func::FuncOp createMLPAddTOSAFunction(MLIRContext &ctx, ModuleOp module);
 
 func::FuncOp createMLPReluFunction(MLIRContext &ctx, ModuleOp module);
 
