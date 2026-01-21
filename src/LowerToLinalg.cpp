@@ -54,7 +54,8 @@ namespace {
 //     if (!resultType)
 //       return failure();
 
-//     rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, resultType, attr);
+//     rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, resultType,
+//     attr);
 
 //     return mlir::success();
 //   }
@@ -66,9 +67,8 @@ struct ConstantOpToArith : public OpConversionPattern<mlp::ConstantOp> {
   LogicalResult
   matchAndRewrite(mlp::ConstantOp op, OpAdaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    //auto attr = op.getValue().dyn_cast<DenseElementsAttr>();
-     auto attr = llvm::dyn_cast<DenseElementsAttr>(op.getValue());
-
+    // auto attr = op.getValue().dyn_cast<DenseElementsAttr>();
+    auto attr = llvm::dyn_cast<DenseElementsAttr>(op.getValue());
 
     if (!attr)
       return failure();
@@ -114,76 +114,124 @@ struct LinearOpToLinalg : public OpConversionPattern<mlp::LinearOp> {
 
     // Create zero-init tensor for matmul output
     auto zeroAttr = rewriter.getZeroAttr(resultTy);
-    Value init = rewriter.create<arith::ConstantOp>(loc, resultTy, zeroAttr);
+    Value init = arith::ConstantOp::create(rewriter, loc, resultTy, zeroAttr);
 
-    // Create linalg.matmul
-    auto matmul = rewriter.create<linalg::MatmulOp>(
-        loc,
-        /*resultTensorTypes=*/TypeRange{resultTy},
-        /*inputs=*/ValueRange{lhs, rhs},
-        /*outputs=*/ValueRange{init});
+    auto linear =
+        linalg::MatmulOp::create(rewriter, loc,
+                                 /*resultTensorTypes=*/TypeRange{resultTy},
+                                 /*inputs=*/ValueRange{lhs, rhs},
+                                 /*outputs=*/ValueRange{init});
 
-    rewriter.replaceOp(op, matmul.getResult(0));
+    rewriter.replaceOp(op, linear.getResult(0));
     return success();
   }
 };
 
-// struct ReluOpToLinalg : public mlir::OpConversionPattern<mlp::ReluOp> {
-//   using OpConversionPattern::OpConversionPattern;
+struct AddOpToLinalg : public OpConversionPattern<mlp::AddOp> {
+  using OpConversionPattern::OpConversionPattern;
 
-//   LogicalResult
-//   matchAndRewrite(mlp::ReluOp op, OpAdaptor adaptor,
-//                   ConversionPatternRewriter &rewriter) const override {
-//     Location loc = op.getLoc();
+  LogicalResult
+  matchAndRewrite(mlp::AddOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
 
-//     auto resultTy = op.getType().dyn_cast<RankedTensorType>();
-//     if (!resultTy)
-//       return rewriter.notifyMatchFailure(op, "expected ranked tensor");
+    // auto resultTy = op.getType().dyn_cast<RankedTensorType>();
+    auto resultTy = llvm::dyn_cast<RankedTensorType>(op.getType());
 
-//     Value input = adaptor.getInput();
+    if (!resultTy)
+      return rewriter.notifyMatchFailure(op, "expected ranked tensor result");
 
-//     // ------------------------------------------------------------
-//     // Create init tensor (zero-filled)
-//     // ------------------------------------------------------------
-//     auto zeroAttr = rewriter.getZeroAttr(resultTy);
-//     Value init = rewriter.create<arith::ConstantOp>(loc, resultTy, zeroAttr);
+    Value rhs = adaptor.getRhs(); // %0
+    Value lhs = adaptor.getLhs(); // %1
 
-//     // ------------------------------------------------------------
-//     // Build indexing maps
-//     // ------------------------------------------------------------
-//     auto identity = rewriter.getMultiDimIdentityMap(resultTy.getRank());
-//     // DBS_PRINT(identity);
+    // Create zero-init tensor for matmul output
+    auto zeroAttr = rewriter.getZeroAttr(resultTy);
+    Value init = arith::ConstantOp::create(rewriter, loc, resultTy, zeroAttr);
 
-//     SmallVector<AffineMap, 2> indexingMaps = {identity, identity};
-//     // ------------------------------------------------------------
-//     // Iterator types (all parallel for ReLU)
-//     // ------------------------------------------------------------
-//     SmallVector<utils::IteratorType> iteratorTypes(
-//         resultTy.getRank(), utils::IteratorType::parallel);
+    auto add = linalg::AddOp::create(rewriter, loc,
+                                     /*resultTensorTypes=*/TypeRange{resultTy},
+                                     /*inputs=*/ValueRange{lhs, rhs},
+                                     /*outputs=*/ValueRange{init});
 
-//     // ------------------------------------------------------------
-//     // Create linalg.generic
-//     // ------------------------------------------------------------
-//     auto genericOp = rewriter.create<linalg::GenericOp>(
-//         loc,
-//         /*resultTensorTypes=*/TypeRange{resultTy},
-//         /*inputs=*/ValueRange{input},
-//         /*outputs=*/ValueRange{init}, indexingMaps, iteratorTypes,
-//         [&](OpBuilder &builder, Location loc, ValueRange args) {
-//           Value x = args[0];
+    rewriter.replaceOp(op, add.getResult(0));
+    return success();
+  }
+};
 
-//           Value zero = builder.create<arith::ConstantOp>(
-//               loc, builder.getFloatAttr(x.getType(), 0.0));
+struct ReluOpToLinalg : public mlir::OpConversionPattern<mlp::ReluOp> {
+  using OpConversionPattern::OpConversionPattern;
 
-//           Value relu = builder.create<arith::MaximumFOp>(loc, x, zero);
+  LogicalResult
+  matchAndRewrite(mlp::ReluOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
 
-//           builder.create<linalg::YieldOp>(loc, relu);
-//         });
+    auto resultTy = llvm::dyn_cast<RankedTensorType>(op.getType());
 
-//     rewriter.replaceOp(op, genericOp.getResult(0));
-//     return success();
-//   }
-// };
+    if (!resultTy)
+      return rewriter.notifyMatchFailure(op, "expected ranked tensor");
+
+    Value input = adaptor.getInput();
+
+    // ------------------------------------------------------------
+    // Create init tensor (zero-filled)
+    // ------------------------------------------------------------
+    auto zeroAttr = rewriter.getZeroAttr(resultTy);
+    Value init = arith::ConstantOp::create(rewriter, loc, resultTy, zeroAttr);
+
+    // ------------------------------------------------------------
+    // Build indexing maps
+    // ------------------------------------------------------------
+    auto identity = rewriter.getMultiDimIdentityMap(resultTy.getRank());
+    // DBS_PRINT(identity);
+
+    SmallVector<AffineMap, 2> indexingMaps = {identity, identity};
+    // ------------------------------------------------------------
+    // Iterator types (all parallel for ReLU)
+    // ------------------------------------------------------------
+    SmallVector<utils::IteratorType> iteratorTypes(
+        resultTy.getRank(), utils::IteratorType::parallel);
+
+    // ------------------------------------------------------------
+    // Create linalg.generic
+    // ------------------------------------------------------------
+
+    auto genericOp = linalg::GenericOp::create(
+        rewriter, loc,
+        /*resultTensorTypes=*/TypeRange{resultTy},
+        /*inputs=*/ValueRange{input},
+        /*outputs=*/ValueRange{init}, indexingMaps, iteratorTypes,
+        [&](OpBuilder &builder, Location loc, ValueRange args) {
+          Value x = args[0];
+
+          Value zero = arith::ConstantOp::create(
+              builder, loc, builder.getFloatAttr(x.getType(), 0.0));
+
+          Value relu = arith::MaximumFOp::create(builder, loc, x, zero);
+
+          linalg::YieldOp::create(builder, loc, relu);
+        });
+
+    // auto genericOp = rewriter.create<linalg::GenericOp>(
+    //     loc,
+    //     /*resultTensorTypes=*/TypeRange{resultTy},
+    //     /*inputs=*/ValueRange{input},
+    //     /*outputs=*/ValueRange{init}, indexingMaps, iteratorTypes,
+    //     [&](OpBuilder &builder, Location loc, ValueRange args) {
+    //       Value x = args[0];
+
+    //       Value zero = builder.create<arith::ConstantOp>(
+    //           loc, builder.getFloatAttr(x.getType(), 0.0));
+
+    //       Value relu = builder.create<arith::MaximumFOp>(loc, x, zero);
+
+    //       builder.create<linalg::YieldOp>(loc, relu);
+    //     });
+
+    rewriter.replaceOp(op, genericOp.getResult(0));
+    return success();
+  }
+};
 
 // struct SoftmaxToLinalg : public mlir::OpConversionPattern<mlp::SoftmaxOp> {
 //   using OpConversionPattern::OpConversionPattern;
@@ -317,13 +365,19 @@ struct MLPToLinalgLoweringPass
     //   });
     // });
 
+    // target.addDynamicallyLegalOp<mlp::PrintOp>([](mlp::PrintOp op) {
+    //   return llvm::none_of(op->getOperandTypes(), [](Type type) {
+    //     return llvm::isa<MemRefType>(type);
+    //   });
+    // });
     target.addDynamicallyLegalOp<mlp::PrintOp>([](mlp::PrintOp op) {
       return llvm::none_of(op->getOperandTypes(), [](Type type) {
         return llvm::isa<MemRefType>(type);
       });
     });
 
-    patterns.add<LinearOpToLinalg, ConstantOpToArith, PrintOpLowering>(ctx);
+    patterns.add<LinearOpToLinalg, ConstantOpToArith, PrintOpLowering,
+                 AddOpToLinalg, ReluOpToLinalg>(ctx);
 
     if (failed(applyPartialConversion(getOperation(), target,
                                       std::move(patterns))))

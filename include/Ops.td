@@ -108,7 +108,7 @@ def ConstantOp : MLP_OP<"constant",
   let hasVerifier = 1;
 
   // Set the folder bit so that we can implement constant folders.
-  let hasFolder = 0;
+  let hasFolder = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -134,6 +134,60 @@ def AddOp : MLP_OP<"add",
     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
   ];
 }
+
+//===----------------------------------------------------------------------===//
+// ReluOp
+//===----------------------------------------------------------------------===//
+
+def ReluOp : MLP_OP<"relu",
+    [Pure]> {
+
+  let summary = "element-wise ReLU operation";
+  let description = [{
+    The `relu` operation applies the Rectified Linear Unit function
+    element-wise to the input tensor:
+
+      relu(x) = max(0, x)
+
+    The input and output tensor shapes are identical.
+  }];
+
+  let arguments = (ins F64Tensor:$input);
+  let results   = (outs F64Tensor:$result);
+
+  // Custom printer/parser (optional, but consistent with AddOp)
+  let hasCustomAssemblyFormat = 1;
+
+  let builders = [
+    OpBuilder<(ins "Value":$input)>
+  ];
+}
+
+//===----------------------------------------------------------------------===//
+// SoftmaxOp
+//===----------------------------------------------------------------------===//
+
+// def SoftmaxOp : MLP_OP<"softmax",
+//     [Pure]> {
+
+//   let summary = "softmax normalization operation";
+//   let description = [{
+//     The `softmax` operation applies the softmax function to the input tensor,
+//     normalizing values along the last dimension so that they sum to 1.
+
+//     This operation is typically used in classification layers.
+//   }];
+
+//   let arguments = (ins F64Tensor:$input);
+//   let results   = (outs F64Tensor:$result);
+
+//   let hasCustomAssemblyFormat = 1;
+
+//   let builders = [
+//     OpBuilder<(ins "Value":$input)>
+//   ];
+// }
+
 //===----------------------------------------------------------------------===//
 // LinearOp
 //===----------------------------------------------------------------------===//
