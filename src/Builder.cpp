@@ -4,7 +4,6 @@
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
 #include "mlir/Conversion/LinalgToStandard/LinalgToStandard.h"
 #include "mlir/Conversion/VectorToSCF/VectorToSCF.h"
-// #include "mlir/Dialect/Affine/Passes.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/Passes.h"
@@ -34,378 +33,391 @@ using namespace mlir;
 // using namespace dbs;
 using namespace mlir::mlp;
 
-namespace builder {
-func::FuncOp createMainFunction(MLIRContext &ctx, ModuleOp module) {
-
-  mlir::OpBuilder builder(&ctx);
-
-  [[maybe_unused]] auto f32 = builder.getF32Type();
-  auto funcType = builder.getFunctionType({}, {});
-
-  auto func =
-      builder.create<func::FuncOp>(builder.getUnknownLoc(), "main", funcType);
-  module.push_back(func);
-
-  auto *entry = func.addEntryBlock();
-  builder.setInsertionPointToStart(entry);
-
-#ifdef PRINT
-  // ---- Declare print function ----
+namespace builder
+{
+  func::FuncOp createMainFunction(MLIRContext &ctx, ModuleOp module)
   {
-    OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToStart(module.getBody());
 
-    auto printType = builder.getFunctionType({f32}, {});
-    builder
-        .create<func::FuncOp>(builder.getUnknownLoc(), "print_f32", printType)
-        .setPrivate();
+    mlir::OpBuilder builder(&ctx);
+
+    [[maybe_unused]] auto f32 = builder.getF32Type();
+    auto funcType = builder.getFunctionType({}, {});
+
+    // auto func =
+    //     func::FuncOp::create(builder,builder.getUnknownLoc(), "main",
+    //     funcType);
+    auto func =
+        mlir::func::FuncOp::create(builder.getUnknownLoc(), "main", funcType);
+
+    module.push_back(func);
+
+    auto *entry = func.addEntryBlock();
+    builder.setInsertionPointToStart(entry);
+
+#ifdef PRINT
+    // ---- Declare print function ----
+    {
+      OpBuilder::InsertionGuard guard(builder);
+      builder.setInsertionPointToStart(module.getBody());
+
+      auto printType = builder.getFunctionType({f32}, {});
+      builder
+          .create<func::FuncOp>(builder.getUnknownLoc(), "print_f32", printType)
+          .setPrivate();
+    }
+#endif
+
+    Value c1 = arith::ConstantOp::create(builder, builder.getUnknownLoc(),
+                                         builder.getF32FloatAttr(1.0));
+    Value c2 = arith::ConstantOp::create(builder, builder.getUnknownLoc(),
+                                         builder.getF32FloatAttr(2.0));
+
+    //  [[maybe_unused]] Value add = builder
+    //  .create<func::CallOp>(builder.getUnknownLoc(), "my_mul",
+    //  builder.getF32Type(), ValueRange{c1, c2}) ->getResult(0);
+    //   Value sum = builder.create<arith::AddFOp::create(builder,builder.getUnknownLoc(), c1,
+    //   c2);
+
+#ifdef PRINT
+    // Print mul result
+    builder.create<func::CallOp>(builder.getUnknownLoc(), "print_f32",
+                                 TypeRange{}, ValueRange{add});
+#endif
+
+    // //  --- Call my_mul ---
+    // Value c3 = arith::ConstantOp::create(builder,builder.getUnknownLoc(),
+    //                                              builder.getF32FloatAttr(3.0));
+    // Value c4 = arith::ConstantOp::create(builder,builder.getUnknownLoc(),
+    //                                              builder.getF32FloatAttr(4.0));
+
+    // [[maybe_unused]] Value mul =
+    //     builder
+    //         .create<func::CallOp>(builder.getUnknownLoc(), "my_mul",
+    //                               builder.getF32Type(), ValueRange{c3, c4})
+    //         ->getResult(0);
+#ifdef PRINT
+    // Print mul result
+    builder.create<func::CallOp>(builder.getUnknownLoc(), "print_f32",
+                                 TypeRange{}, ValueRange{mul});
+#endif
+
+    // auto c5 = arith::ConstantOp::create(builder,builder.getUnknownLoc(),
+    //                                             builder.getF32FloatAttr(1.0));
+    // auto c6 = arith::ConstantOp::create(builder,builder.getUnknownLoc(),
+    //                                             builder.getF32FloatAttr(2.0));
+
+    // // Use your custom dialect op
+    // auto myAdd = builder.create<mlir::dbs::Add::create(builder,builder.getUnknownLoc(), c1,
+    // c2);
+
+    func::ReturnOp::create(builder, builder.getUnknownLoc());
+    // mlir::func::ReturnOp::create(builder.getUnknownLoc());
+    return func;
   }
-#endif
-
-  // --- Call my_add ---
-  Value c1 = builder.create<arith::ConstantOp>(builder.getUnknownLoc(),
-                                               builder.getF32FloatAttr(1.0));
-  Value c2 = builder.create<arith::ConstantOp>(builder.getUnknownLoc(),
-                                               builder.getF32FloatAttr(2.0));
 
-  //  [[maybe_unused]] Value add = builder
-  //  .create<func::CallOp>(builder.getUnknownLoc(), "my_mul",
-  //  builder.getF32Type(), ValueRange{c1, c2}) ->getResult(0);
-  //   Value sum = builder.create<arith::AddFOp>(builder.getUnknownLoc(), c1,
-  //   c2);
-
-#ifdef PRINT
-  // Print mul result
-  builder.create<func::CallOp>(builder.getUnknownLoc(), "print_f32",
-                               TypeRange{}, ValueRange{add});
-#endif
+  // ---------------------------------------------
+  // Create MLIR function: mul(a : f32, b : f32) -> f32
+  // ---------------------------------------------
+  func::FuncOp createMulFunction(MLIRContext &ctx, ModuleOp module)
+  {
+    OpBuilder builder(&ctx);
 
-  // //  --- Call my_mul ---
-  // Value c3 = builder.create<arith::ConstantOp>(builder.getUnknownLoc(),
-  //                                              builder.getF32FloatAttr(3.0));
-  // Value c4 = builder.create<arith::ConstantOp>(builder.getUnknownLoc(),
-  //                                              builder.getF32FloatAttr(4.0));
+    auto f32 = builder.getF32Type();
+    auto funcType = builder.getFunctionType({f32, f32}, {f32});
 
-  // [[maybe_unused]] Value mul =
-  //     builder
-  //         .create<func::CallOp>(builder.getUnknownLoc(), "my_mul",
-  //                               builder.getF32Type(), ValueRange{c3, c4})
-  //         ->getResult(0);
-#ifdef PRINT
-  // Print mul result
-  builder.create<func::CallOp>(builder.getUnknownLoc(), "print_f32",
-                               TypeRange{}, ValueRange{mul});
-#endif
+    auto func =
+        func::FuncOp::create(builder, builder.getUnknownLoc(), "my_mul", funcType);
 
-  // auto c5 = builder.create<arith::ConstantOp>(builder.getUnknownLoc(),
-  //                                             builder.getF32FloatAttr(1.0));
-  // auto c6 = builder.create<arith::ConstantOp>(builder.getUnknownLoc(),
-  //                                             builder.getF32FloatAttr(2.0));
+    func.setVisibility(mlir::SymbolTable::Visibility::Public);
 
-  // // Use your custom dialect op
-  // auto myAdd = builder.create<mlir::dbs::Add>(builder.getUnknownLoc(), c1,
-  // c2);
+    module.push_back(func);
 
-  builder.create<func::ReturnOp>(builder.getUnknownLoc());
-  return func;
-}
+    Block *entry = func.addEntryBlock();
+    builder.setInsertionPointToStart(entry);
 
-// ---------------------------------------------
-// Create MLIR function: mul(a : f32, b : f32) -> f32
-// ---------------------------------------------
-func::FuncOp createMulFunction(MLIRContext &ctx, ModuleOp module) {
-  OpBuilder builder(&ctx);
+    Value a = entry->getArgument(0);
+    Value b = entry->getArgument(1);
 
-  auto f32 = builder.getF32Type();
-  auto funcType = builder.getFunctionType({f32, f32}, {f32});
+    Value prod = arith::MulFOp::create(builder, builder.getUnknownLoc(), a, b);
 
-  auto func =
-      builder.create<func::FuncOp>(builder.getUnknownLoc(), "my_mul", funcType);
+    func::ReturnOp::create(builder, builder.getUnknownLoc(), prod);
+    return func;
+  }
 
-  func.setVisibility(mlir::SymbolTable::Visibility::Public);
+  // ---------------------------------------------
+  // Create MLIR function: add(a : f32, b : f32) -> f32
+  // ---------------------------------------------
 
-  module.push_back(func);
+  func::FuncOp createAddFunction(MLIRContext &ctx, ModuleOp module)
+  {
+    OpBuilder builder(&ctx);
 
-  Block *entry = func.addEntryBlock();
-  builder.setInsertionPointToStart(entry);
+    auto f32 = builder.getF32Type();
+    auto funcType = builder.getFunctionType({f32, f32}, {f32});
 
-  Value a = entry->getArgument(0);
-  Value b = entry->getArgument(1);
+    auto func =
+        func::FuncOp::create(builder, builder.getUnknownLoc(), "my_add", funcType);
 
-  Value prod = builder.create<arith::MulFOp>(builder.getUnknownLoc(), a, b);
+    func.setVisibility(mlir::SymbolTable::Visibility::Public);
 
-  builder.create<func::ReturnOp>(builder.getUnknownLoc(), prod);
-  return func;
-}
+    module.push_back(func);
 
-// ---------------------------------------------
-// Create MLIR function: add(a : f32, b : f32) -> f32
-// ---------------------------------------------
+    // Create entry block
+    mlir::Block *entry = func.addEntryBlock();
+    builder.setInsertionPointToStart(entry);
+    Value a = entry->getArgument(0);
+    Value b = entry->getArgument(1);
 
-func::FuncOp createAddFunction(MLIRContext &ctx, ModuleOp module) {
-  OpBuilder builder(&ctx);
+    Value sum = arith::AddFOp::create(builder, builder.getUnknownLoc(), a, b);
 
-  auto f32 = builder.getF32Type();
-  auto funcType = builder.getFunctionType({f32, f32}, {f32});
+    func::ReturnOp::create(builder, builder.getUnknownLoc(), sum);
+    return func;
+  }
 
-  auto func =
-      builder.create<func::FuncOp>(builder.getUnknownLoc(), "my_add", funcType);
+  func::FuncOp createMLPAddFunction(MLIRContext &ctx,
+                                    ModuleOp module)
+  { // WORKING ON THIS
+    OpBuilder builder(&ctx);
+    Location loc = builder.getUnknownLoc();
 
-  func.setVisibility(mlir::SymbolTable::Visibility::Public);
+    // auto f32 = builder.getF32Type();
+    auto f64 = builder.getF64Type();
 
-  module.push_back(func);
+    auto rankedtensorf64Ty = RankedTensorType::get({2}, f64);
+    // auto rankedtensorf32Ty = RankedTensorType::get({2}, f32);
 
-  // Create entry block
-  mlir::Block *entry = func.addEntryBlock();
-  builder.setInsertionPointToStart(entry);
-  Value a = entry->getArgument(0);
-  Value b = entry->getArgument(1);
+    auto funcType = builder.getFunctionType({}, {});
 
-  Value sum = builder.create<arith::AddFOp>(builder.getUnknownLoc(), a, b);
+    auto func =
+        func::FuncOp::create(builder, builder.getUnknownLoc(), "main", funcType);
 
-  builder.create<func::ReturnOp>(builder.getUnknownLoc(), sum);
-  return func;
-}
+    func.setVisibility(mlir::SymbolTable::Visibility::Public);
 
-func::FuncOp createMLPAddFunction(MLIRContext &ctx,
-                                  ModuleOp module) { // WORKING ON THIS
-  OpBuilder builder(&ctx);
-  Location loc = builder.getUnknownLoc();
+    module.push_back(func);
+    // Create entry block
+    mlir::Block *entry = func.addEntryBlock();
+    builder.setInsertionPointToStart(entry);
 
-  // auto f32 = builder.getF32Type();
-  auto f64 = builder.getF64Type();
+    llvm::SmallVector<llvm::APFloat, 2> vals1 = {llvm::APFloat(5.0),
+                                                 llvm::APFloat(7.0)};
+    llvm::SmallVector<llvm::APFloat, 2> vals2 = {llvm::APFloat(10.0),
+                                                 llvm::APFloat(5.0)};
 
-  auto rankedtensorf64Ty = RankedTensorType::get({2}, f64);
-  // auto rankedtensorf32Ty = RankedTensorType::get({2}, f32);
+    auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorf64Ty, vals1);
+    auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorf64Ty, vals2);
 
-  auto funcType = builder.getFunctionType({}, {});
+    Value c1 =
+        mlp::ConstantOp::create(builder, loc, rankedtensorf64Ty, denseAttr1);
 
-  auto func =
-      builder.create<func::FuncOp>(builder.getUnknownLoc(), "main", funcType);
+    Value c2 =
+        mlp::ConstantOp::create(builder, loc, rankedtensorf64Ty, denseAttr2);
 
-  func.setVisibility(mlir::SymbolTable::Visibility::Public);
+    Value add = mlp::AddOp::create(builder, loc, rankedtensorf64Ty, c1, c2);
+    // Value add = builder.create<mlp::ReluOp::create(builder,loc, rankedtensorf64Ty, c1);
 
-  module.push_back(func);
-  // Create entry block
-  mlir::Block *entry = func.addEntryBlock();
-  builder.setInsertionPointToStart(entry);
+    //  mlp::PrintOp::create(builder,builder.getUnknownLoc(), c1);
+    //  mlp::PrintOp::create(builder,builder.getUnknownLoc(), c2);
+    mlp::PrintOp::create(builder, builder.getUnknownLoc(), add);
 
-  llvm::SmallVector<llvm::APFloat, 2> vals1 = {llvm::APFloat(5.0),
-                                               llvm::APFloat(7.0)};
-  llvm::SmallVector<llvm::APFloat, 2> vals2 = {llvm::APFloat(10.0),
-                                               llvm::APFloat(5.0)};
+    func::ReturnOp::create(builder, loc);
 
-  auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorf64Ty, vals1);
-  auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorf64Ty, vals2);
+    return func;
+  }
 
-  Value c1 =
-      builder.create<mlp::ConstantOp>(loc, rankedtensorf64Ty, denseAttr1);
+  func::FuncOp createMLPLinearFunction(MLIRContext &ctx,
+                                       ModuleOp module)
+  { // WORKING ON THIS
 
-  Value c2 =
-      builder.create<mlp::ConstantOp>(loc, rankedtensorf64Ty, denseAttr2);
+    OpBuilder builder(&ctx);
+    Location loc = builder.getUnknownLoc();
 
-  Value add = builder.create<mlp::AddOp>(loc, rankedtensorf64Ty, c1, c2);
-  // Value add = builder.create<mlp::ReluOp>(loc, rankedtensorf64Ty, c1);
+    auto f64 = builder.getF64Type();
 
-  //  builder.create<mlp::PrintOp>(builder.getUnknownLoc(), c1);
-  //  builder.create<mlp::PrintOp>(builder.getUnknownLoc(), c2);
-  builder.create<mlp::PrintOp>(builder.getUnknownLoc(), add);
+    auto rankedtensorfTy = RankedTensorType::get({2, 2}, f64);
 
-  builder.create<func::ReturnOp>(loc);
+    auto funcType = builder.getFunctionType({}, {});
 
-  return func;
-}
+    auto func =
+        func::FuncOp::create(builder, builder.getUnknownLoc(), "main", funcType);
 
-func::FuncOp createMLPLinearFunction(MLIRContext &ctx,
-                                     ModuleOp module) { // WORKING ON THIS
+    func.setVisibility(mlir::SymbolTable::Visibility::Public);
 
-                             
-  OpBuilder builder(&ctx);
-  Location loc = builder.getUnknownLoc();
+    module.push_back(func);
+    // Create entry block
+    mlir::Block *entry = func.addEntryBlock();
+    builder.setInsertionPointToStart(entry);
 
-  auto f64 = builder.getF64Type();
+    llvm::SmallVector<llvm::APFloat, 2> vals1D = {llvm::APFloat(3.0),
+                                                  llvm::APFloat(1.0)};
+    llvm::SmallVector<llvm::APFloat, 2> vals1 = {
+        llvm::APFloat(3.0), llvm::APFloat(1.0), llvm::APFloat(2.0),
+        llvm::APFloat(2.0)};
+    llvm::SmallVector<llvm::APFloat, 2> vals2 = {
+        llvm::APFloat(1.0), llvm::APFloat(5.0), llvm::APFloat(5.0),
+        llvm::APFloat(2.0)};
 
-  auto rankedtensorfTy = RankedTensorType::get({2, 2}, f64);
+    int64_t N = vals1D.size();
+    auto tensor1DTy = RankedTensorType::get({1, N}, f64); // Batch is 1
+    // auto tensor1DTy = RankedTensorType::get({1,N}, f64); // Batch is 1
+    auto denseAttr1D = mlir::DenseElementsAttr::get(tensor1DTy, vals1D);
+    Value c1D = mlp::ConstantOp::create(builder, loc, tensor1DTy, denseAttr1D);
 
-  auto funcType = builder.getFunctionType({}, {});
+    auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals1);
+    auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals2);
 
-  auto func =
-      builder.create<func::FuncOp>(builder.getUnknownLoc(), "main", funcType);
+    Value c1 = mlp::ConstantOp::create(builder, loc, rankedtensorfTy, denseAttr1);
+    Value c2 = mlp::ConstantOp::create(builder, loc, rankedtensorfTy, denseAttr2);
+    // mlp::PrintOp::create(builder,loc, c1);
+    mlp::PrintOp::create(builder, loc, c1);
+    // mlp::PrintOp::create(builder,loc, c2);
 
-  func.setVisibility(mlir::SymbolTable::Visibility::Public);
+    mlp::PrintOp::create(builder, loc, c2);
 
-  module.push_back(func);
-  // Create entry block
-  mlir::Block *entry = func.addEntryBlock();
-  builder.setInsertionPointToStart(entry);
+    Value lin = mlp::LinearOp::create(builder, loc, rankedtensorfTy, c1, c2);
 
-  llvm::SmallVector<llvm::APFloat, 2> vals1D = {llvm::APFloat(3.0),
-                                                llvm::APFloat(1.0)};
-  llvm::SmallVector<llvm::APFloat, 2> vals1 = {
-      llvm::APFloat(3.0), llvm::APFloat(1.0), llvm::APFloat(2.0),
-      llvm::APFloat(2.0)};
-  llvm::SmallVector<llvm::APFloat, 2> vals2 = {
-      llvm::APFloat(1.0), llvm::APFloat(5.0), llvm::APFloat(5.0),
-      llvm::APFloat(2.0)};
+    mlp::PrintOp::create(builder, loc, lin);
 
-  int64_t N = vals1D.size();
-  auto tensor1DTy = RankedTensorType::get({1, N}, f64); // Batch is 1
-  // auto tensor1DTy = RankedTensorType::get({1,N}, f64); // Batch is 1
-  auto denseAttr1D = mlir::DenseElementsAttr::get(tensor1DTy, vals1D);
-  Value c1D = builder.create<mlp::ConstantOp>(loc, tensor1DTy, denseAttr1D);
+    // Value relu = builder.create<mlp::ReluOp::create(builder,loc, rankedtensorfTy, lin);
 
-  auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals1);
-  auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals2);
+    // Value softmax = builder.create<mlp::SoftmaxOp::create(builder,loc, tensor1DTy, c1D);
 
-  Value c1 = builder.create<mlp::ConstantOp>(loc, rankedtensorfTy, denseAttr1);
-  Value c2 = builder.create<mlp::ConstantOp>(loc, rankedtensorfTy, denseAttr2);
-  builder.create<mlp::PrintOp>(loc, c1);
-  builder.create<mlp::PrintOp>(loc, c2);
-  Value lin = builder.create<mlp::LinearOp>(loc, rankedtensorfTy, c1, c2);
+    // mlp::PrintOp::create(builder,loc, relu);
 
-  builder.create<mlp::PrintOp>(loc, lin);
+    mlir::func::ReturnOp::create(builder, loc);
 
-  // Value relu = builder.create<mlp::ReluOp>(loc, rankedtensorfTy, lin);
+    return func;
+  }
 
-  // Value softmax = builder.create<mlp::SoftmaxOp>(loc, tensor1DTy, c1D);
+  // func::FuncOp createMLPAddTOSAFunction(MLIRContext &ctx,
+  //                                       ModuleOp module) { // WORKING ON THIS
+  //   OpBuilder builder(&ctx);
+  //   Location loc = builder.getUnknownLoc();
 
-  // builder.create<mlp::PrintOp>(loc, relu);
+  //   auto f32 = builder.getF32Type();
+  //   auto f64 = builder.getF64Type();
 
-  builder.create<func::ReturnOp>(loc);
+  //   // auto rankedtensor32Ty = RankedTensorType::get({2}, f32);
+  //   auto rankedtensor64Ty = RankedTensorType::get({2}, f64);
 
-  return func;
-}
+  //   auto funcType = builder.getFunctionType({}, {});
 
-// func::FuncOp createMLPAddTOSAFunction(MLIRContext &ctx,
-//                                       ModuleOp module) { // WORKING ON THIS
-//   OpBuilder builder(&ctx);
-//   Location loc = builder.getUnknownLoc();
+  //   auto func =
+  //       func::FuncOp::create(builder,builder.getUnknownLoc(), "main",
+  //       funcType);
 
-//   auto f32 = builder.getF32Type();
-//   auto f64 = builder.getF64Type();
+  //   func.setVisibility(mlir::SymbolTable::Visibility::Public);
 
-//   // auto rankedtensor32Ty = RankedTensorType::get({2}, f32);
-//   auto rankedtensor64Ty = RankedTensorType::get({2}, f64);
+  //   module.push_back(func);
+  //   // Create entry block
+  //   mlir::Block *entry = func.addEntryBlock();
+  //   builder.setInsertionPointToStart(entry);
 
-//   auto funcType = builder.getFunctionType({}, {});
+  //   // llvm::SmallVector<llvm::APFloat, 2> vals1 = {llvm::APFloat(5.0),
+  //   //                                              llvm::APFloat(7.0)};
+  //   // llvm::SmallVector<llvm::APFloat, 2> vals2 = {llvm::APFloat(10.0),
+  //   //                                              llvm::APFloat(5.0)};
 
-//   auto func =
-//       builder.create<func::FuncOp>(builder.getUnknownLoc(), "main",
-//       funcType);
+  //   // auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorTy, vals1);
+  //   // auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorTy, vals2);
+  //   std::vector<float> vals1 = {5, 7};
+  //   std::vector<float> vals2 = {10, 5};
 
-//   func.setVisibility(mlir::SymbolTable::Visibility::Public);
+  //   // Convert to FloatAttr
+  //   llvm::SmallVector<mlir::Attribute, 2> attrs1;
+  //   for (auto v : vals1)
+  //     attrs1.push_back(builder.getFloatAttr(f64, v));
 
-//   module.push_back(func);
-//   // Create entry block
-//   mlir::Block *entry = func.addEntryBlock();
-//   builder.setInsertionPointToStart(entry);
+  //   // llvm::SmallVector<mlir::Attribute, 2> attrs2;
+  //   // for (auto v : vals2)
+  //   //   attrs2.push_back(builder.getFloatAttr(i32, v));
 
-//   // llvm::SmallVector<llvm::APFloat, 2> vals1 = {llvm::APFloat(5.0),
-//   //                                              llvm::APFloat(7.0)};
-//   // llvm::SmallVector<llvm::APFloat, 2> vals2 = {llvm::APFloat(10.0),
-//   //                                              llvm::APFloat(5.0)};
+  //   auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensor64Ty, attrs1);
+  //   //  auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorTy, attrs2);
 
-//   // auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorTy, vals1);
-//   // auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorTy, vals2);
-//   std::vector<float> vals1 = {5, 7};
-//   std::vector<float> vals2 = {10, 5};
+  //   /////////////////////////////
+  //   // 1) f64 tensor constant
+  //   auto denseAttr5 = DenseElementsAttr::get(rankedtensor64Ty, attrs1);
 
-//   // Convert to FloatAttr
-//   llvm::SmallVector<mlir::Attribute, 2> attrs1;
-//   for (auto v : vals1)
-//     attrs1.push_back(builder.getFloatAttr(f64, v));
+  //   // Value c64 =
+  //   //     mlp::ConstantOp::create(builder,loc, rankedtensor64Ty, denseAttr5);
 
-//   // llvm::SmallVector<mlir::Attribute, 2> attrs2;
-//   // for (auto v : vals2)
-//   //   attrs2.push_back(builder.getFloatAttr(i32, v));
+  //   // // 2) cast f64 -> f32 (tensor-level)
+  //   // Value c32 =
+  //   //     builder.create<arith::TruncFOp>(loc, rankedtensor32Ty, c64);
 
-//   auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensor64Ty, attrs1);
-//   //  auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorTy, attrs2);
+  //   // // 3) use f32 result
+  //   // mlp::PrintOp::create(builder,loc, c32);
 
-//   /////////////////////////////
-//   // 1) f64 tensor constant
-//   auto denseAttr5 = DenseElementsAttr::get(rankedtensor64Ty, attrs1);
+  //   /////////////////////////////
 
-//   // Value c64 =
-//   //     builder.create<mlp::ConstantOp>(loc, rankedtensor64Ty, denseAttr5);
+  //   // Value c1 = mlp::ConstantOp::create(builder,loc, rankedtensor32Ty,
+  //   // denseAttr1);
 
-//   // // 2) cast f64 -> f32 (tensor-level)
-//   // Value c32 =
-//   //     builder.create<arith::TruncFOp>(loc, rankedtensor32Ty, c64);
+  //   // Value c2 = builder.create<tosa::ConstOp::create(builder,loc, rankedtensorTy,
+  //   denseAttr2);
 
-//   // // 3) use f32 result
-//   // builder.create<mlp::PrintOp>(loc, c32);
+  //   // Value add = builder.create<tosa::AddOp::create(builder,loc, rankedtensorTy, c1, c2);
 
-//   /////////////////////////////
+  //   // mlp::PrintOp::create(builder,builder.getUnknownLoc(), c32);
+  //   //   mlp::PrintOp::create(builder,builder.getUnknownLoc(), c22);
+  //   //   mlp::PrintOp::create(builder,builder.getUnknownLoc(), add);
 
-//   // Value c1 = builder.create<mlp::ConstantOp>(loc, rankedtensor32Ty,
-//   // denseAttr1);
+  //   auto t32 = RankedTensorType::get({2}, f32);
+  //   auto t64 = RankedTensorType::get({2}, f64);
 
-//   // Value c2 = builder.create<tosa::ConstOp>(loc, rankedtensorTy,
-//   denseAttr2);
+  //   // Build f32 attrs
+  //   llvm::SmallVector<Attribute, 2> attrs64;
+  //   for (float v : vals1)
+  //     attrs64.push_back(builder.getFloatAttr(f64, v));
 
-//   // Value add = builder.create<tosa::AddOp>(loc, rankedtensorTy, c1, c2);
+  //   auto dense32 = DenseElementsAttr::get(t64, attrs64);
+  //   Value c32 = mlp::ConstantOp::create(builder,loc, t32, dense32);
+  //   mlp::PrintOp::create(builder,builder.getUnknownLoc(), c32);
+  //   builder.create<func::ReturnOp::create(builder,loc);
 
-//   // builder.create<mlp::PrintOp>(builder.getUnknownLoc(), c32);
-//   //   builder.create<mlp::PrintOp>(builder.getUnknownLoc(), c22);
-//   //   builder.create<mlp::PrintOp>(builder.getUnknownLoc(), add);
+  //   return func;
+  // }
 
-//   auto t32 = RankedTensorType::get({2}, f32);
-//   auto t64 = RankedTensorType::get({2}, f64);
+  func::FuncOp createMLPReluFunction(MLIRContext &ctx,
+                                     ModuleOp module)
+  { // WORKING ON THIS
+    OpBuilder builder(&ctx);
 
-//   // Build f32 attrs
-//   llvm::SmallVector<Attribute, 2> attrs64;
-//   for (float v : vals1)
-//     attrs64.push_back(builder.getFloatAttr(f64, v));
+    auto f64 = builder.getF64Type();
 
-//   auto dense32 = DenseElementsAttr::get(t64, attrs64);
-//   Value c32 = builder.create<mlp::ConstantOp>(loc, t32, dense32);
-//   builder.create<mlp::PrintOp>(builder.getUnknownLoc(), c32);
-//   builder.create<func::ReturnOp>(loc);
+    auto rankedtensorTy = RankedTensorType::get({4}, f64);
+    auto unrankedtensorTy = UnrankedTensorType::get(f64);
 
-//   return func;
-// }
+    auto funcType = builder.getFunctionType({}, {});
 
-func::FuncOp createMLPReluFunction(MLIRContext &ctx,
-                                   ModuleOp module) { // WORKING ON THIS
-  OpBuilder builder(&ctx);
+    auto func =
+        func::FuncOp::create(builder, builder.getUnknownLoc(), "main", funcType);
 
-  auto f64 = builder.getF64Type();
+    func.setVisibility(mlir::SymbolTable::Visibility::Public);
 
-  auto rankedtensorTy = RankedTensorType::get({4}, f64);
-  auto unrankedtensorTy = UnrankedTensorType::get(f64);
+    module.push_back(func);
+    // Create entry block
+    mlir::Block *entry = func.addEntryBlock();
+    builder.setInsertionPointToStart(entry);
 
-  auto funcType = builder.getFunctionType({}, {});
+    llvm::SmallVector<llvm::APFloat, 4> vals1 = {
+        llvm::APFloat(5.0), llvm::APFloat(-7.0), llvm::APFloat(7.0),
+        llvm::APFloat(10.0)};
 
-  auto func =
-      builder.create<func::FuncOp>(builder.getUnknownLoc(), "main",
-      funcType);
+    auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorTy, vals1);
 
-  func.setVisibility(mlir::SymbolTable::Visibility::Public);
+    Value c11 = mlp::ConstantOp::create(builder, builder.getUnknownLoc(),
+                                        rankedtensorTy, denseAttr1);
 
-  module.push_back(func);
-  // Create entry block
-  mlir::Block *entry = func.addEntryBlock();
-  builder.setInsertionPointToStart(entry);
+    Value relu =
+        mlp::ReluOp::create(builder, builder.getUnknownLoc(), rankedtensorTy, c11);
 
-  llvm::SmallVector<llvm::APFloat, 4> vals1 = {
-      llvm::APFloat(5.0), llvm::APFloat(-7.0), llvm::APFloat(7.0),
-      llvm::APFloat(10.0)};
+    mlp::PrintOp::create(builder, builder.getUnknownLoc(), c11);
 
-  auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorTy, vals1);
+    mlp::PrintOp::create(builder, builder.getUnknownLoc(), relu);
 
-  Value c11 = builder.create<mlp::ConstantOp>(builder.getUnknownLoc(),
-                                              rankedtensorTy, denseAttr1);
-
-  Value relu = builder.create<mlp::ReluOp>(builder.getUnknownLoc(),rankedtensorTy, c11);
-
-  builder.create<mlp::PrintOp>(builder.getUnknownLoc(), c11);
-
-  builder.create<mlp::PrintOp>(builder.getUnknownLoc(), relu);
-
-  builder.create<func::ReturnOp>(builder.getUnknownLoc());
-
-  return func;
-}
+    func::ReturnOp::create(builder, builder.getUnknownLoc());
+    return func;
+  }
 
 } // namespace builder
