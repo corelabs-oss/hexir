@@ -134,6 +134,29 @@ def AddOp : MLP_OP<"add",
     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
   ];
 }
+//===----------------------------------------------------------------------===//
+// MulOp
+//===----------------------------------------------------------------------===//
+
+// def MulOp : MLP_OP<"mul",
+//     [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+//   let summary = "element-wise multiplication operation";
+//   let description = [{
+//     The "mul" operation performs element-wise multiplication between two
+//     tensors. The shapes of the tensor operands are expected to match.
+//   }];
+
+//   let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);
+//   let results = (outs F64Tensor);
+
+//   // Indicate that the operation has a custom parser and printer method.
+//   let hasCustomAssemblyFormat = 1;
+
+//   // Allow building a MulOp with from the two input operands.
+//   let builders = [
+//     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+//   ];
+// }
 
 //===----------------------------------------------------------------------===//
 // ReluOp
@@ -162,32 +185,6 @@ def ReluOp : MLP_OP<"relu",
     OpBuilder<(ins "Value":$input)>
   ];
 }
-
-// ===----------------------------------------------------------------------===//
-// SoftmaxOp
-// ===----------------------------------------------------------------------===//
-
-// def SoftmaxOp : MLP_OP<"softmax",
-//     [Pure]> {
-
-//   let summary = "softmax normalization operation";
-//   let description = [{
-//     The `softmax` operation applies the softmax function to the input tensor,
-//     normalizing values along the last dimension so that they sum to 1.
-
-//     This operation is typically used in classification layers.
-//   }];
-
-//   let arguments = (ins F64Tensor:$input);
-//   let results   = (outs F64Tensor:$result);
-
-//   let hasCustomAssemblyFormat = 1;
-
-//   let builders = [
-//     OpBuilder<(ins "Value":$input)>
-//   ];
-// }
-
 
 // ===----------------------------------------------------------------------===//
 // LeakyReLU
@@ -413,29 +410,6 @@ def FuncOp : MLP_OP<"func", [
 }
 
 
-//===----------------------------------------------------------------------===//
-// MulOp
-//===----------------------------------------------------------------------===//
-
-// def MulOp : MLP_OP<"mul",
-//     [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
-//   let summary = "element-wise multiplication operation";
-//   let description = [{
-//     The "mul" operation performs element-wise multiplication between two
-//     tensors. The shapes of the tensor operands are expected to match.
-//   }];
-
-//   let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);
-//   let results = (outs F64Tensor);
-
-//   // Indicate that the operation has a custom parser and printer method.
-//   let hasCustomAssemblyFormat = 1;
-
-//   // Allow building a MulOp with from the two input operands.
-//   let builders = [
-//     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
-//   ];
-// }
 
 //===----------------------------------------------------------------------===//
 // PrintOp
