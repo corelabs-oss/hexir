@@ -9,6 +9,7 @@ set(MLIR_DIR "/home/hamza/Repos/llvm-project/build/lib/cmake/mlir")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+
 find_package(LLVM REQUIRED CONFIG)
 find_package(MLIR REQUIRED CONFIG)
 
@@ -32,6 +33,8 @@ add_definitions(${LLVM_DEFINITIONS})
 
 add_subdirectory(include)
 
+
+
 set(LLVM_TARGET_DEFINITIONS src/MlpCombine.td)
 mlir_tablegen(MlpCombine.inc -gen-rewriters)
 add_public_tablegen_target(CombineIncGen)
@@ -39,6 +42,11 @@ add_public_tablegen_target(CombineIncGen)
 
 file(
   GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+  GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/cpu/*.cpp"
+  GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/gpu/*.cpp"
+  GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/metal/*.cpp"
+  GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/cpu/*.cpp"
+  GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/rocm/*.cpp"
 )
 add_executable(mlp_mlir ${CCMLIR_SRC})
 
