@@ -85,8 +85,13 @@ static cl::opt<std::string> inputFilename(cl::Positional,
                                           cl::init("-"),
                                           cl::value_desc("filename"));
 
-namespace {
-enum InputType { MLP, MLIR };
+namespace
+{
+  enum InputType
+  {
+    MLP,
+    MLIR
+  };
 } // namespace
 static cl::opt<enum InputType> inputType(
     "x", cl::init(MLP), cl::desc("Decided the kind of output desired"),
@@ -94,17 +99,19 @@ static cl::opt<enum InputType> inputType(
     cl::values(clEnumValN(MLIR, "mlir",
                           "load the input file as an MLIR file")));
 
-namespace {
-enum Action {
-  None,
-  DumpAST,
-  DumpMLIR,
-  DumpMLIRAffine,
-  DumpMLIRLinalg,
-  DumpMLIRLLVM,
-  DumpLLVMIR,
-  RunJIT
-};
+namespace
+{
+  enum Action
+  {
+    None,
+    DumpAST,
+    DumpMLIR,
+    DumpMLIRAffine,
+    DumpMLIRLinalg,
+    DumpMLIRLLVM,
+    DumpLLVMIR,
+    RunJIT
+  };
 } // namespace
 static cl::opt<enum Action> emitAction(
     "emit", cl::desc("Select the kind of output desired"),
@@ -121,11 +128,11 @@ static cl::opt<enum Action> emitAction(
         clEnumValN(RunJIT, "jit",
                    "JIT the code and run it by invoking the main function")));
 
-                  
 static cl::opt<bool> enableOpt("opt", cl::desc("Enable optimizations"));
 
 static int loadMLIR(mlir::MLIRContext &context,
-                    mlir::OwningOpRef<mlir::ModuleOp> &module) {
+                    mlir::OwningOpRef<mlir::ModuleOp> &module)
+{
 
   // CREATE MODULE FIRST
   module = mlir::ModuleOp::create(mlir::UnknownLoc::get(&context));
@@ -134,13 +141,14 @@ static int loadMLIR(mlir::MLIRContext &context,
   context.getOrLoadDialect<mlir::mlp::MLPDialect>();
 
   createMLPLinearFunction(context, *module);
-//createMLPAddFunction(context, *module); 
-//createMLPReluFunction(context, *module);
+  // createMLPAddFunction(context, *module);
+  // createMLPReluFunction(context, *module);
   return 0;
 }
 
 static int loadAndProcessMLIR(mlir::MLIRContext &context,
-                              mlir::OwningOpRef<mlir::ModuleOp> &module) {
+                              mlir::OwningOpRef<mlir::ModuleOp> &module)
+{
   if (int error = loadMLIR(context, module))
     return error;
 
@@ -154,7 +162,8 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   bool isLoweringToLinalg = emitAction >= Action::DumpMLIRLinalg;
   bool isLoweringToLLVM = emitAction >= Action::DumpMLIRLLVM;
 
-  if (enableOpt || isLoweringToAffine) {
+  if (enableOpt || isLoweringToAffine)
+  {
     // Inline all functions into main and then delete them.
     pm.addPass(mlir::createInlinerPass());
 
@@ -186,7 +195,8 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   std::cout << std::endl
             << isLoweringToLinalg << std::endl
             << isLoweringToAffine << std::endl;
-  if (isLoweringToLinalg) {
+  if (isLoweringToLinalg)
+  {
     // Partially lower the mlp dialect.
     pm.addPass(mlir::mlp::createLowerToLinalgPass());
 
@@ -196,13 +206,15 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
     optPM.addPass(mlir::createCSEPass());
 
     // Add optimizations if enabled.
-    if (enableOpt) {
+    if (enableOpt)
+    {
       optPM.addPass(mlir::affine::createLoopFusionPass());
       optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
     }
   }
 
-  if (isLoweringToLLVM) {
+  if (isLoweringToLLVM)
+  {
     // Finish lowering the mlp IR to the LLVM dialect.
     pm.addPass(mlir::mlp::createLowerToLLVMPass());
     // This is necessary to have line tables emitted and basic
@@ -216,8 +228,10 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   return 0;
 }
 
-static int dumpAST() {
-  if (inputType == InputType::MLIR) {
+static int dumpAST()
+{
+  if (inputType == InputType::MLIR)
+  {
     llvm::errs() << "Can't dump a mlp AST when the input is MLIR\n";
     return 5;
   }
@@ -230,7 +244,8 @@ static int dumpAST() {
   return 0;
 }
 
-static int dumpLLVMIR(mlir::ModuleOp module) {
+static int dumpLLVMIR(mlir::ModuleOp module)
+{
   // Register the translation to LLVM IR with the MLIR context.
   mlir::registerBuiltinDialectTranslation(*module->getContext());
   mlir::registerLLVMDialectTranslation(*module->getContext());
@@ -238,7 +253,8 @@ static int dumpLLVMIR(mlir::ModuleOp module) {
   // Convert the module to LLVM IR in a new LLVM IR context.
   llvm::LLVMContext llvmContext;
   auto llvmModule = mlir::translateModuleToLLVMIR(module, llvmContext);
-  if (!llvmModule) {
+  if (!llvmModule)
+  {
     llvm::errs() << "Failed to emit LLVM IR\n";
     return -1;
   }
@@ -249,13 +265,15 @@ static int dumpLLVMIR(mlir::ModuleOp module) {
 
   // Create target machine and configure the LLVM Module
   auto tmBuilderOrError = llvm::orc::JITTargetMachineBuilder::detectHost();
-  if (!tmBuilderOrError) {
+  if (!tmBuilderOrError)
+  {
     llvm::errs() << "Could not create JITTargetMachineBuilder\n";
     return -1;
   }
 
   auto tmOrError = tmBuilderOrError->createTargetMachine();
-  if (!tmOrError) {
+  if (!tmOrError)
+  {
     llvm::errs() << "Could not create TargetMachine\n";
     return -1;
   }
@@ -266,7 +284,8 @@ static int dumpLLVMIR(mlir::ModuleOp module) {
   auto optPipeline = mlir::makeOptimizingTransformer(
       /*optLevel=*/enableOpt ? 3 : 0, /*sizeLevel=*/0,
       /*targetMachine=*/nullptr);
-  if (auto err = optPipeline(llvmModule.get())) {
+  if (auto err = optPipeline(llvmModule.get()))
+  {
     llvm::errs() << "Failed to optimize LLVM IR " << err << "\n";
     return -1;
   }
@@ -274,7 +293,8 @@ static int dumpLLVMIR(mlir::ModuleOp module) {
   return 0;
 }
 
-static int runJit(mlir::ModuleOp module) {
+static int runJit(mlir::ModuleOp module)
+{
   // Initialize LLVM targets.
   llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmPrinter();
@@ -299,7 +319,8 @@ static int runJit(mlir::ModuleOp module) {
 
   // Invoke the JIT-compiled function.
   auto invocationResult = engine->invokePacked("main");
-  if (invocationResult) {
+  if (invocationResult)
+  {
     llvm::errs() << "JIT invocation failed\n";
     return -1;
   }
@@ -307,7 +328,8 @@ static int runJit(mlir::ModuleOp module) {
   return 0;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   // Register any command line options.
   mlir::registerAsmPrinterCLOptions();
   mlir::registerMLIRContextCLOptions();
@@ -337,7 +359,8 @@ int main(int argc, char **argv) {
 
   // If we aren't exporting to non-mlir, then we are done.
   bool isOutputingMLIR = emitAction <= Action::DumpMLIRLLVM;
-  if (isOutputingMLIR) {
+  if (isOutputingMLIR)
+  {
     module->dump();
     return 0;
   }
