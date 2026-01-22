@@ -35,6 +35,44 @@ using namespace mlir::mlp;
 
 namespace builder
 {
+/**
+ * createMainFunction
+ *
+ * Construct a top-level "main" function inside the provided MLIR module.
+ *
+ * Behavior:
+ * - Creates a func::FuncOp named "main" with an empty function type (no
+ *   arguments, no results).
+ * - Adds the function to the supplied ModuleOp and inserts a new entry block.
+ * - Establishes an OpBuilder insertion point at the start of the entry block.
+ * - Emits two f32 constants (1.0 and 2.0) into the function body.
+ * - Emits a func::ReturnOp to terminate the function.
+ *
+ * Conditional behavior (enabled when PRINT is defined at compile time):
+ * - Declares a helper function "print_f32" (f32 -> void) at module scope and
+ *   marks it private.
+ * - Attempts to emit calls to "print_f32" with the results of intermediate
+ *   operations (intended to print computed f32 values). Note: those intermediate
+ *   values (e.g. add, mul) must exist in the function body for the print calls
+ *   to be valid.
+ *
+ * Parameters:
+ * - ctx:   The MLIRContext used to construct operations and types.
+ * - module: The ModuleOp into which the "main" function will be inserted.
+ *
+ * Side effects:
+ * - Mutates the provided ModuleOp by appending the newly created FuncOp and,
+ *   when PRINT is defined, by inserting a private "print_f32" declaration.
+ * - Creates operations and IR in the provided MLIRContext.
+ *
+ * Returns:
+ * - The created func::FuncOp corresponding to "main".
+ *
+ * Notes:
+ * - All created operations use builder.getUnknownLoc() for locations.
+ * - The function currently has no arguments and returns nothing; callers that
+ *   expect different signatures should modify the function type accordingly.
+ */
   func::FuncOp createMainFunction(MLIRContext &ctx, ModuleOp module)
   {
 
