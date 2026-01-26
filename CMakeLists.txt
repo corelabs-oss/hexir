@@ -42,11 +42,11 @@ add_public_tablegen_target(CombineIncGen)
 
 file(
   GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-  GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/cpu/*.cpp"
-  GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/gpu/*.cpp"
-  GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/metal/*.cpp"
-  GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/cpu/*.cpp"
-  GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/rocm/*.cpp"
+  # GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/cpu/*.cpp"
+  # GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/gpu/*.cpp"
+  # GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/metal/*.cpp"
+  # GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/cpu/*.cpp"
+  # GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/rocm/*.cpp"
 )
 add_executable(mlp_mlir ${CCMLIR_SRC})
 
@@ -113,10 +113,20 @@ target_link_libraries(
           MLIRBuiltinToLLVMIRTranslation
           MLIRTranslateLib
           MLIRExecutionEngine
+          MLIRArithTransforms
           MLIRCallInterfaces
+          MLIRBufferizationTransforms
           MLIRCastInterfaces
           MLIRFunctionInterfaces
           MLIRSideEffectInterfaces
+          MLIRArithDialect
+    MLIRFuncDialect
+    MLIRTensorDialect
+    MLIRLinalgDialect
+    MLIRBufferizationDialect
+    MLIRMemRefDialect
+    MLIRSCFDialect
+    
           LLVMSupport)
 
 install(TARGETS mlp_mlir RUNTIME DESTINATION bin)

@@ -24,7 +24,6 @@
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/TypeID.h"
-
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -48,13 +47,15 @@ using namespace mlir;
 //===----------------------------------------------------------------------===//
 
 /// Convert the given RankedTensorType into the corresponding MemRefType.
-static MemRefType convertTensorToMemRef(RankedTensorType type) {
+static MemRefType convertTensorToMemRef(RankedTensorType type)
+{
   return MemRefType::get(type.getShape(), type.getElementType());
 }
 
 /// Insert an allocation and deallocation for the given MemRefType.
 static Value insertAllocAndDealloc(MemRefType type, Location loc,
-                                   PatternRewriter &rewriter) {
+                                   PatternRewriter &rewriter)
+{
   auto alloc = memref::AllocOp::create(rewriter, loc, type);
 
   // Make sure to allocate at the beginning of the block.
@@ -76,7 +77,8 @@ using LoopIterationFn =
     function_ref<Value(OpBuilder &rewriter, ValueRange loopIvs)>;
 
 static void lowerOpToLoops(Operation *op, PatternRewriter &rewriter,
-                           LoopIterationFn processIteration) {
+                           LoopIterationFn processIteration)
+{
   auto tensorType = llvm::cast<RankedTensorType>((*op->result_type_begin()));
   auto loc = op->getLoc();
 
@@ -92,7 +94,8 @@ static void lowerOpToLoops(Operation *op, PatternRewriter &rewriter,
   SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);
   affine::buildAffineLoopNest(
       rewriter, loc, lowerBounds, tensorType.getShape(), steps,
-      [&](OpBuilder &nestedBuilder, Location loc, ValueRange ivs) {
+      [&](OpBuilder &nestedBuilder, Location loc, ValueRange ivs)
+      {
         // Call the processing function with the rewriter
         // and the loop induction variables. This function will return the value
         // to store at the current index.
@@ -105,21 +108,25 @@ static void lowerOpToLoops(Operation *op, PatternRewriter &rewriter,
   rewriter.replaceOp(op, alloc);
 }
 
-namespace {
-//===----------------------------------------------------------------------===//
-// MlpToAffine Conversion Patterns: Binary operations
-//===----------------------------------------------------------------------===//
+namespace
+{
+  //===----------------------------------------------------------------------===//
+  // MlpToAffine Conversion Patterns: Binary operations
+  //===----------------------------------------------------------------------===//
 
-template <typename BinaryOp, typename LoweredBinaryOp>
-struct BinaryOpLowering : public OpConversionPattern<BinaryOp> {
-  using OpConversionPattern<BinaryOp>::OpConversionPattern;
-  using OpAdaptor = typename OpConversionPattern<BinaryOp>::OpAdaptor;
+  template <typename BinaryOp, typename LoweredBinaryOp>
+  struct BinaryOpLowering : public OpConversionPattern<BinaryOp>
+  {
+    using OpConversionPattern<BinaryOp>::OpConversionPattern;
+    using OpAdaptor = typename OpConversionPattern<BinaryOp>::OpAdaptor;
 
-  LogicalResult
-  matchAndRewrite(BinaryOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const final {
-    auto loc = op->getLoc();
-    lowerOpToLoops(op, rewriter, [&](OpBuilder &builder, ValueRange loopIvs) {
+    LogicalResult
+    matchAndRewrite(BinaryOp op, OpAdaptor adaptor,
+                    ConversionPatternRewriter &rewriter) const final
+    {
+      auto loc = op->getLoc();
+      lowerOpToLoops(op, rewriter, [&](OpBuilder &builder, ValueRange loopIvs)
+                     {
       // Generate loads for the element of 'lhs' and 'rhs' at the
       // inner loop.
       auto loadedLhs =
@@ -129,177 +136,189 @@ struct BinaryOpLowering : public OpConversionPattern<BinaryOp> {
 
       // Create the binary operation performed on the loaded
       // values.
-      return LoweredBinaryOp::create(builder, loc, loadedLhs, loadedRhs);
-    });
-    return success();
-  }
-};
+      return LoweredBinaryOp::create(builder, loc, loadedLhs, loadedRhs); });
+      return success();
+    }
+  };
 
-using AddOpLowering = BinaryOpLowering<mlp::AddOp, arith::AddFOp>;
-// using MulOpLowering = BinaryOpLowering<mlp::MulOp, arith::MulFOp>;
+  using AddOpLowering = BinaryOpLowering<mlp::AddOp, arith::AddFOp>;
+  // using MulOpLowering = BinaryOpLowering<mlp::MulOp, arith::MulFOp>;
 
-//===----------------------------------------------------------------------===//
-// MlpToAffine Conversion Patterns: Constant operations
-//===----------------------------------------------------------------------===//
+  //===----------------------------------------------------------------------===//
+  // MlpToAffine Conversion Patterns: Constant operations
+  //===----------------------------------------------------------------------===//
 
-struct ConstantOpLowering : public OpConversionPattern<mlp::ConstantOp> {
-  using OpConversionPattern<mlp::ConstantOp>::OpConversionPattern;
+  struct ConstantOpLowering : public OpConversionPattern<mlp::ConstantOp>
+  {
+    using OpConversionPattern<mlp::ConstantOp>::OpConversionPattern;
 
-  LogicalResult
-  matchAndRewrite(mlp::ConstantOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const final {
-    DenseElementsAttr constantValue = op.getValue();
-    Location loc = op.getLoc();
+    LogicalResult
+    matchAndRewrite(mlp::ConstantOp op, OpAdaptor adaptor,
+                    ConversionPatternRewriter &rewriter) const final
+    {
+      DenseElementsAttr constantValue = op.getValue();
+      Location loc = op.getLoc();
 
-    // When lowering the constant operation, we allocate and assign the constant
-    // values to a corresponding memref allocation.
-    auto tensorType = llvm::cast<RankedTensorType>(op.getType());
-    auto memRefType = convertTensorToMemRef(tensorType);
-    auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
+      // When lowering the constant operation, we allocate and assign the constant
+      // values to a corresponding memref allocation.
+      auto tensorType = llvm::cast<RankedTensorType>(op.getType());
+      auto memRefType = convertTensorToMemRef(tensorType);
+      auto alloc = insertAllocAndDealloc(memRefType, loc, rewriter);
 
-    // We will be generating constant indices up-to the largest dimension.
-    // Create these constants up-front to avoid large amounts of redundant
-    // operations.
-    auto valueShape = memRefType.getShape();
-    SmallVector<Value, 8> constantIndices;
+      // We will be generating constant indices up-to the largest dimension.
+      // Create these constants up-front to avoid large amounts of redundant
+      // operations.
+      auto valueShape = memRefType.getShape();
+      SmallVector<Value, 8> constantIndices;
 
-    if (!valueShape.empty()) {
-      for (auto i : llvm::seq<int64_t>(0, *llvm::max_element(valueShape)))
+      if (!valueShape.empty())
+      {
+        for (auto i : llvm::seq<int64_t>(0, *llvm::max_element(valueShape)))
+          constantIndices.push_back(
+              arith::ConstantIndexOp::create(rewriter, loc, i));
+      }
+      else
+      {
+        // This is the case of a tensor of rank 0.
         constantIndices.push_back(
-            arith::ConstantIndexOp::create(rewriter, loc, i));
-    } else {
-      // This is the case of a tensor of rank 0.
-      constantIndices.push_back(
-          arith::ConstantIndexOp::create(rewriter, loc, 0));
-    }
-
-    // The constant operation represents a multi-dimensional constant, so we
-    // will need to generate a store for each of the elements. The following
-    // functor recursively walks the dimensions of the constant shape,
-    // generating a store when the recursion hits the base case.
-    SmallVector<Value, 2> indices;
-    auto valueIt = constantValue.value_begin<FloatAttr>();
-    std::function<void(uint64_t)> storeElements = [&](uint64_t dimension) {
-      // The last dimension is the base case of the recursion, at this point
-      // we store the element at the given index.
-      if (dimension == valueShape.size()) {
-        affine::AffineStoreOp::create(
-            rewriter, loc, arith::ConstantOp::create(rewriter, loc, *valueIt++),
-            alloc, llvm::ArrayRef(indices));
-        return;
+            arith::ConstantIndexOp::create(rewriter, loc, 0));
       }
 
-      // Otherwise, iterate over the current dimension and add the indices to
-      // the list.
-      for (uint64_t i = 0, e = valueShape[dimension]; i != e; ++i) {
-        indices.push_back(constantIndices[i]);
-        storeElements(dimension + 1);
-        indices.pop_back();
-      }
-    };
+      // The constant operation represents a multi-dimensional constant, so we
+      // will need to generate a store for each of the elements. The following
+      // functor recursively walks the dimensions of the constant shape,
+      // generating a store when the recursion hits the base case.
+      SmallVector<Value, 2> indices;
+      auto valueIt = constantValue.value_begin<FloatAttr>();
+      std::function<void(uint64_t)> storeElements = [&](uint64_t dimension)
+      {
+        // The last dimension is the base case of the recursion, at this point
+        // we store the element at the given index.
+        if (dimension == valueShape.size())
+        {
+          affine::AffineStoreOp::create(
+              rewriter, loc, arith::ConstantOp::create(rewriter, loc, *valueIt++),
+              alloc, llvm::ArrayRef(indices));
+          return;
+        }
 
-    // Start the element storing recursion from the first dimension.
-    storeElements(/*dimension=*/0);
+        // Otherwise, iterate over the current dimension and add the indices to
+        // the list.
+        for (uint64_t i = 0, e = valueShape[dimension]; i != e; ++i)
+        {
+          indices.push_back(constantIndices[i]);
+          storeElements(dimension + 1);
+          indices.pop_back();
+        }
+      };
 
-    // Replace this operation with the generated alloc.
-    rewriter.replaceOp(op, alloc);
-    return success();
-  }
-};
+      // Start the element storing recursion from the first dimension.
+      storeElements(/*dimension=*/0);
 
-//===----------------------------------------------------------------------===//
-// MlpToAffine Conversion Patterns: Func operations
-//===----------------------------------------------------------------------===//
-
-struct FuncOpLowering : public OpConversionPattern<mlp::FuncOp> {
-  using OpConversionPattern<mlp::FuncOp>::OpConversionPattern;
-
-  LogicalResult
-  matchAndRewrite(mlp::FuncOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const final {
-    // We only lower the main function as we expect that all other functions
-    // have been inlined.
-    if (op.getName() != "main")
-      return failure();
-
-    // Verify that the given main has no inputs and results.
-    if (op.getNumArguments() || op.getFunctionType().getNumResults()) {
-      return rewriter.notifyMatchFailure(op, [](Diagnostic &diag) {
-        diag << "expected 'main' to have 0 inputs and 0 results";
-      });
+      // Replace this operation with the generated alloc.
+      rewriter.replaceOp(op, alloc);
+      return success();
     }
+  };
 
-    // Create a new non-mlp function, with the same region.
-    auto func = mlir::func::FuncOp::create(rewriter, op.getLoc(), op.getName(),
-                                           op.getFunctionType());
-    rewriter.inlineRegionBefore(op.getRegion(), func.getBody(), func.end());
-    rewriter.eraseOp(op);
-    return success();
-  }
-};
+  //===----------------------------------------------------------------------===//
+  // MlpToAffine Conversion Patterns: Func operations
+  //===----------------------------------------------------------------------===//
 
-//===----------------------------------------------------------------------===//
-// MlpToAffine Conversion Patterns: Print operations
-//===----------------------------------------------------------------------===//
+  struct FuncOpLowering : public OpConversionPattern<mlp::FuncOp>
+  {
+    using OpConversionPattern<mlp::FuncOp>::OpConversionPattern;
 
-struct PrintOpLowering : public OpConversionPattern<mlp::PrintOp> {
-  using OpConversionPattern<mlp::PrintOp>::OpConversionPattern;
+    LogicalResult
+    matchAndRewrite(mlp::FuncOp op, OpAdaptor adaptor,
+                    ConversionPatternRewriter &rewriter) const final
+    {
+      // We only lower the main function as we expect that all other functions
+      // have been inlined.
+      if (op.getName() != "main")
+        return failure();
 
-  LogicalResult
-  matchAndRewrite(mlp::PrintOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const final {
-    // We don't lower "mlp.print" in this pass, but we need to update its
-    // operands.
-    rewriter.modifyOpInPlace(op,
-                             [&] { op->setOperands(adaptor.getOperands()); });
-    return success();
-  }
-};
+      // Verify that the given main has no inputs and results.
+      if (op.getNumArguments() || op.getFunctionType().getNumResults())
+      {
+        return rewriter.notifyMatchFailure(op, [](Diagnostic &diag)
+                                           { diag << "expected 'main' to have 0 inputs and 0 results"; });
+      }
 
-// ===----------------------------------------------------------------------===//
-// MlpToAffine Conversion Patterns: Return operations
-// ===----------------------------------------------------------------------===//
+      // Create a new non-mlp function, with the same region.
+      auto func = mlir::func::FuncOp::create(rewriter, op.getLoc(), op.getName(),
+                                             op.getFunctionType());
+      rewriter.inlineRegionBefore(op.getRegion(), func.getBody(), func.end());
+      rewriter.eraseOp(op);
+      return success();
+    }
+  };
 
-// struct ReturnOpLowering : public OpConversionPattern<mlp::ReturnOp> {
-//   using OpConversionPattern<mlp::ReturnOp>::OpConversionPattern;
+  //===----------------------------------------------------------------------===//
+  // MlpToAffine Conversion Patterns: Print operations
+  //===----------------------------------------------------------------------===//
 
-//   LogicalResult
-//   matchAndRewrite(mlp::ReturnOp op, OpAdaptor adaptor,
-//                   ConversionPatternRewriter &rewriter) const final {
-//     // During this lowering, we expect that all function calls have been
-//     // inlined.
-//     if (op.hasOperand())
-//       return failure();
+  struct PrintOpLowering : public OpConversionPattern<mlp::PrintOp>
+  {
+    using OpConversionPattern<mlp::PrintOp>::OpConversionPattern;
 
-//     // We lower "mlp.return" directly to "func.return".
-//     rewriter.replaceOpWithNewOp<func::ReturnOp>(op);
-//     return success();
-//   }
-// };
+    LogicalResult
+    matchAndRewrite(mlp::PrintOp op, OpAdaptor adaptor,
+                    ConversionPatternRewriter &rewriter) const final
+    {
+      // We don't lower "mlp.print" in this pass, but we need to update its
+      // operands.
+      rewriter.modifyOpInPlace(op,
+                               [&]
+                               { op->setOperands(adaptor.getOperands()); });
+      return success();
+    }
+  };
 
-// ===----------------------------------------------------------------------===//
-// MlpToAffine Conversion Patterns: Transpose operations
-// ===----------------------------------------------------------------------===//
+  // ===----------------------------------------------------------------------===//
+  // MlpToAffine Conversion Patterns: Return operations
+  // ===----------------------------------------------------------------------===//
 
-// struct TransposeOpLowering : public OpConversionPattern<mlp::TransposeOp> {
-//   using OpConversionPattern<mlp::TransposeOp>::OpConversionPattern;
+  // struct ReturnOpLowering : public OpConversionPattern<mlp::ReturnOp> {
+  //   using OpConversionPattern<mlp::ReturnOp>::OpConversionPattern;
 
-//   LogicalResult
-//   matchAndRewrite(mlp::TransposeOp op, OpAdaptor adaptor,
-//                   ConversionPatternRewriter &rewriter) const final {
-//     auto loc = op->getLoc();
-//     lowerOpToLoops(op, rewriter, [&](OpBuilder &builder, ValueRange loopIvs)
-//     {
-//       Value input = adaptor.getInput();
+  //   LogicalResult
+  //   matchAndRewrite(mlp::ReturnOp op, OpAdaptor adaptor,
+  //                   ConversionPatternRewriter &rewriter) const final {
+  //     // During this lowering, we expect that all function calls have been
+  //     // inlined.
+  //     if (op.hasOperand())
+  //       return failure();
 
-//       // Transpose the elements by generating a load from the
-//       // reverse indices.
-//       SmallVector<Value, 2> reverseIvs(llvm::reverse(loopIvs));
-//       return affine::AffineLoadOp::create(builder, loc, input, reverseIvs);
-//     });
-//     return success();
-//   }
-// };
+  //     // We lower "mlp.return" directly to "func.return".
+  //     rewriter.replaceOpWithNewOp<func::ReturnOp>(op);
+  //     return success();
+  //   }
+  // };
+
+  // ===----------------------------------------------------------------------===//
+  // MlpToAffine Conversion Patterns: Transpose operations
+  // ===----------------------------------------------------------------------===//
+
+  // struct TransposeOpLowering : public OpConversionPattern<mlp::TransposeOp> {
+  //   using OpConversionPattern<mlp::TransposeOp>::OpConversionPattern;
+
+  //   LogicalResult
+  //   matchAndRewrite(mlp::TransposeOp op, OpAdaptor adaptor,
+  //                   ConversionPatternRewriter &rewriter) const final {
+  //     auto loc = op->getLoc();
+  //     lowerOpToLoops(op, rewriter, [&](OpBuilder &builder, ValueRange loopIvs)
+  //     {
+  //       Value input = adaptor.getInput();
+
+  //       // Transpose the elements by generating a load from the
+  //       // reverse indices.
+  //       SmallVector<Value, 2> reverseIvs(llvm::reverse(loopIvs));
+  //       return affine::AffineLoadOp::create(builder, loc, input, reverseIvs);
+  //     });
+  //     return success();
+  //   }
+  // };
 
 } // namespace
 
@@ -310,21 +329,25 @@ struct PrintOpLowering : public OpConversionPattern<mlp::PrintOp> {
 /// This is a partial lowering to affine loops of the mlp operations that are
 /// computationally intensive (like matmul for example...) while keeping the
 /// rest of the code in the Mlp dialect.
-namespace {
-struct MlpToAffineLoweringPass
-    : public PassWrapper<MlpToAffineLoweringPass, OperationPass<ModuleOp>> {
-  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MlpToAffineLoweringPass)
-  StringRef getArgument() const override { return "mlp-to-affine"; }
+namespace
+{
+  struct MlpToAffineLoweringPass
+      : public PassWrapper<MlpToAffineLoweringPass, OperationPass<ModuleOp>>
+  {
+    MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MlpToAffineLoweringPass)
+    StringRef getArgument() const override { return "mlp-to-affine"; }
 
-  void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<affine::AffineDialect, func::FuncDialect,
-                    memref::MemRefDialect>();
-  }
-  void runOnOperation() final;
-};
+    void getDependentDialects(DialectRegistry &registry) const override
+    {
+      registry.insert<affine::AffineDialect, func::FuncDialect,
+                      memref::MemRefDialect>();
+    }
+    void runOnOperation() final;
+  };
 } // namespace
 
-void MlpToAffineLoweringPass::runOnOperation() {
+void MlpToAffineLoweringPass::runOnOperation()
+{
   // The first thing to define is the conversion target. This will define the
   // final target for this lowering.
   ConversionTarget target(getContext());
@@ -343,10 +366,10 @@ void MlpToAffineLoweringPass::runOnOperation() {
   // to be updated though (as we convert from TensorType to MemRefType), so we
   // only treat it as `legal` if its operands are legal.
   target.addIllegalDialect<mlp::MLPDialect>();
-  target.addDynamicallyLegalOp<mlp::PrintOp>([](mlp::PrintOp op) {
-    return llvm::none_of(op->getOperandTypes(),
-                         [](Type type) { return llvm::isa<TensorType>(type); });
-  });
+  target.addDynamicallyLegalOp<mlp::PrintOp>([](mlp::PrintOp op)
+                                             { return llvm::none_of(op->getOperandTypes(),
+                                                                    [](Type type)
+                                                                    { return llvm::isa<TensorType>(type); }); });
 
   // Now that the conversion target has been defined, we just need to provide
   // the set of patterns that will lower the Mlp operations.
@@ -366,6 +389,7 @@ void MlpToAffineLoweringPass::runOnOperation() {
 
 // Create a pass for lowering operations in the `Affine` and `Std` dialects, for
 // a subset of the Mlp IR (e.g. matmul).
-std::unique_ptr<Pass> mlir::mlp::createLowerToAffinePass() {
+std::unique_ptr<Pass> mlir::mlp::createLowerToAffinePass()
+{
   return std::make_unique<MlpToAffineLoweringPass>();
 }
