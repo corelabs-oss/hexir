@@ -30,291 +30,302 @@
 
 using namespace mlir;
 
-namespace {
+namespace
+{
 
-//===----------------------------------------------------------------------===//
-// MLPTolinalg RewritePatterns: Constant operations
-//===----------------------------------------------------------------------===//
+  //===----------------------------------------------------------------------===//
+  // MLPTolinalg RewritePatterns: Constant operations
+  //===----------------------------------------------------------------------===//
 
-// struct ConstantOpToArith
-//     : public mlir::OpConversionPattern<mlir::mlp::ConstantOp> {
-//   using OpConversionPattern::OpConversionPattern;
+  // struct ConstantOpToArith
+  //     : public mlir::OpConversionPattern<mlir::mlp::ConstantOp> {
+  //   using OpConversionPattern::OpConversionPattern;
 
-//   mlir::LogicalResult
-//   matchAndRewrite(mlir::mlp::ConstantOp op, OpAdaptor adaptor,
-//                   mlir::ConversionPatternRewriter &rewriter) const override {
+  //   mlir::LogicalResult
+  //   matchAndRewrite(mlir::mlp::ConstantOp op, OpAdaptor adaptor,
+  //                   mlir::ConversionPatternRewriter &rewriter) const override {
 
-//     // auto attr = op.getValue().dyn_cast<mlir::DenseElementsAttr>();
-//     auto attr = llvm::dyn_cast<DenseElementsAttr>(op.getValue());
-//     if (!attr)
-//       return rewriter.notifyMatchFailure(op, "expected DenseElementsAttr");
+  //     auto attr = llvm::dyn_cast<DenseElementsAttr>(op.getValue());
+  //     if (!attr)
+  //       return rewriter.notifyMatchFailure(op, "expected DenseElementsAttr");
 
-//     // Convert the result type via the type converter
-//     auto resultType = getTypeConverter()->convertType(op.getType());
-//     if (!resultType)
-//       return failure();
+  //     // Convert the result type via the type converter
+  //     auto resultType = getTypeConverter()->convertType(op.getType());
+  //     if (!resultType)
+  //       return failure();
 
-//     rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, resultType,
-//     attr);
+  //     rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, resultType,
+  //     attr);
 
-//     return mlir::success();
-//   }
-// };
+  //     return mlir::success();
+  //   }
+  // };
 
-struct ConstantOpToArith : public OpConversionPattern<mlp::ConstantOp> {
-  using OpConversionPattern::OpConversionPattern;
+  struct ConstantOpToArith : public OpConversionPattern<mlp::ConstantOp>
+  {
+    using OpConversionPattern::OpConversionPattern;
 
-  LogicalResult
-  matchAndRewrite(mlp::ConstantOp op, OpAdaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    // auto attr = op.getValue().dyn_cast<DenseElementsAttr>();
-    auto attr = llvm::dyn_cast<DenseElementsAttr>(op.getValue());
+    LogicalResult
+    matchAndRewrite(mlp::ConstantOp op, OpAdaptor,
+                    ConversionPatternRewriter &rewriter) const override
+    {
+      auto attr = llvm::dyn_cast<DenseElementsAttr>(op.getValue());
 
-    if (!attr)
-      return failure();
-    rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, op.getType(), attr);
-    return success();
-  }
-};
+      if (!attr)
+        return failure();
+      rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, op.getType(), attr);
+      return success();
+    }
+  };
 
-//===----------------------------------------------------------------------===//
-// MLPTolinalg RewritePatterns: Print operations
-//===----------------------------------------------------------------------===//
+  //===----------------------------------------------------------------------===//
+  // MLPTolinalg RewritePatterns: Print operations
+  //===----------------------------------------------------------------------===//
 
-struct PrintOpLowering : public OpConversionPattern<mlp::PrintOp> {
-  using OpConversionPattern<mlp::PrintOp>::OpConversionPattern;
+  struct PrintOpLowering : public OpConversionPattern<mlp::PrintOp>
+  {
+    using OpConversionPattern<mlp::PrintOp>::OpConversionPattern;
 
-  LogicalResult
-  matchAndRewrite(mlp::PrintOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const final {
-    // We don't lower "MLP.print" in this pass, but we need to update its
-    // operands.
-    rewriter.modifyOpInPlace(op,
-                             [&] { op->setOperands(adaptor.getOperands()); });
-    return success();
-  }
-};
+    LogicalResult
+    matchAndRewrite(mlp::PrintOp op, OpAdaptor adaptor,
+                    ConversionPatternRewriter &rewriter) const final
+    {
+      // We don't lower "MLP.print" in this pass, but we need to update its
+      // operands.
+      rewriter.modifyOpInPlace(op,
+                               [&]
+                               { op->setOperands(adaptor.getOperands()); });
+      return success();
+    }
+  };
 
-struct LinearOpToLinalg : public OpConversionPattern<mlp::LinearOp> {
-  using OpConversionPattern::OpConversionPattern;
+  struct LinearOpToLinalg : public OpConversionPattern<mlp::LinearOp>
+  {
+    using OpConversionPattern::OpConversionPattern;
 
-  LogicalResult
-  matchAndRewrite(mlp::LinearOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    Location loc = op.getLoc();
+    LogicalResult
+    matchAndRewrite(mlp::LinearOp op, OpAdaptor adaptor,
+                    ConversionPatternRewriter &rewriter) const override
+    {
+      Location loc = op.getLoc();
 
-    // auto resultTy = op.getType().dyn_cast<RankedTensorType>();
-    auto resultTy = llvm::dyn_cast<RankedTensorType>(op.getType());
+      // auto resultTy = op.getType().dyn_cast<RankedTensorType>();
+      auto resultTy = llvm::dyn_cast<RankedTensorType>(op.getType());
 
-    if (!resultTy)
-      return rewriter.notifyMatchFailure(op, "expected ranked tensor result");
+      if (!resultTy)
+        return rewriter.notifyMatchFailure(op, "expected ranked tensor result");
 
-    Value lhs = adaptor.getInput();  // %0
-    Value rhs = adaptor.getWeight(); // %1
+      Value lhs = adaptor.getInput();  // %0
+      Value rhs = adaptor.getWeight(); // %1
 
-    // Create zero-init tensor for matmul output
-    auto zeroAttr = rewriter.getZeroAttr(resultTy);
-    Value init = arith::ConstantOp::create(rewriter, loc, resultTy, zeroAttr);
+      // Create zero-init tensor for matmul output
+      auto zeroAttr = rewriter.getZeroAttr(resultTy);
+      Value init = arith::ConstantOp::create(rewriter, loc, resultTy, zeroAttr);
 
-    auto linear =
-        linalg::MatmulOp::create(rewriter, loc,
-                                 /*resultTensorTypes=*/TypeRange{resultTy},
-                                 /*inputs=*/ValueRange{lhs, rhs},
-                                 /*outputs=*/ValueRange{init});
+      auto linear =
+          linalg::MatmulOp::create(rewriter, loc,
+                                   /*resultTensorTypes=*/TypeRange{resultTy},
+                                   /*inputs=*/ValueRange{lhs, rhs},
+                                   /*outputs=*/ValueRange{init});
 
-    rewriter.replaceOp(op, linear.getResult(0));
-    return success();
-  }
-};
+      rewriter.replaceOp(op, linear.getResult(0));
+      return success();
+    }
+  };
 
-struct AddOpToLinalg : public OpConversionPattern<mlp::AddOp> {
-  using OpConversionPattern::OpConversionPattern;
+  struct AddOpToLinalg : public OpConversionPattern<mlp::AddOp>
+  {
+    using OpConversionPattern::OpConversionPattern;
 
-  LogicalResult
-  matchAndRewrite(mlp::AddOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    Location loc = op.getLoc();
+    LogicalResult
+    matchAndRewrite(mlp::AddOp op, OpAdaptor adaptor,
+                    ConversionPatternRewriter &rewriter) const override
+    {
+      Location loc = op.getLoc();
 
-    // auto resultTy = op.getType().dyn_cast<RankedTensorType>();
-    auto resultTy = llvm::dyn_cast<RankedTensorType>(op.getType());
+      // auto resultTy = op.getType().dyn_cast<RankedTensorType>();
+      auto resultTy = llvm::dyn_cast<RankedTensorType>(op.getType());
 
-    if (!resultTy)
-      return rewriter.notifyMatchFailure(op, "expected ranked tensor result");
+      if (!resultTy)
+        return rewriter.notifyMatchFailure(op, "expected ranked tensor result");
 
-    Value rhs = adaptor.getRhs(); // %0
-    Value lhs = adaptor.getLhs(); // %1
+      Value rhs = adaptor.getRhs(); // %0
+      Value lhs = adaptor.getLhs(); // %1
 
-    // Create zero-init tensor for matmul output
-    auto zeroAttr = rewriter.getZeroAttr(resultTy);
-    Value init = arith::ConstantOp::create(rewriter, loc, resultTy, zeroAttr);
+      // Create zero-init tensor for matmul output
+      auto zeroAttr = rewriter.getZeroAttr(resultTy);
+      Value init = arith::ConstantOp::create(rewriter, loc, resultTy, zeroAttr);
 
-    auto add = linalg::AddOp::create(rewriter, loc,
-                                     /*resultTensorTypes=*/TypeRange{resultTy},
-                                     /*inputs=*/ValueRange{lhs, rhs},
-                                     /*outputs=*/ValueRange{init});
+      auto add = linalg::AddOp::create(rewriter, loc,
+                                       /*resultTensorTypes=*/TypeRange{resultTy},
+                                       /*inputs=*/ValueRange{lhs, rhs},
+                                       /*outputs=*/ValueRange{init});
 
-    rewriter.replaceOp(op, add.getResult(0));
-    return success();
-  }
-};
+      rewriter.replaceOp(op, add.getResult(0));
+      return success();
+    }
+  };
 
-struct ReluOpToLinalg : public mlir::OpConversionPattern<mlp::ReluOp> {
-  using OpConversionPattern::OpConversionPattern;
+  struct ReluOpToLinalg : public mlir::OpConversionPattern<mlp::ReluOp>
+  {
+    using OpConversionPattern::OpConversionPattern;
 
-  LogicalResult
-  matchAndRewrite(mlp::ReluOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    Location loc = op.getLoc();
+    LogicalResult
+    matchAndRewrite(mlp::ReluOp op, OpAdaptor adaptor,
+                    ConversionPatternRewriter &rewriter) const override
+    {
+      Location loc = op.getLoc();
 
-    auto resultTy = llvm::dyn_cast<RankedTensorType>(op.getType());
+      auto resultTy = llvm::dyn_cast<RankedTensorType>(op.getType());
 
-    if (!resultTy)
-      return rewriter.notifyMatchFailure(op, "expected ranked tensor");
+      if (!resultTy)
+        return rewriter.notifyMatchFailure(op, "expected ranked tensor");
 
-    Value input = adaptor.getInput();
+      Value input = adaptor.getInput();
 
-    // ------------------------------------------------------------
-    // Create init tensor (zero-filled)
-    // ------------------------------------------------------------
-    auto zeroAttr = rewriter.getZeroAttr(resultTy);
-    Value init = arith::ConstantOp::create(rewriter, loc, resultTy, zeroAttr);
+      // ------------------------------------------------------------
+      // Create init tensor (zero-filled)
+      // ------------------------------------------------------------
+      auto zeroAttr = rewriter.getZeroAttr(resultTy);
+      Value init = arith::ConstantOp::create(rewriter, loc, resultTy, zeroAttr);
 
-    // ------------------------------------------------------------
-    // Build indexing maps
-    // ------------------------------------------------------------
-    auto identity = rewriter.getMultiDimIdentityMap(resultTy.getRank());
-    // DBS_PRINT(identity);
+      // ------------------------------------------------------------
+      // Build indexing maps
+      // ------------------------------------------------------------
+      auto identity = rewriter.getMultiDimIdentityMap(resultTy.getRank());
+      // DBS_PRINT(identity);
 
-    SmallVector<AffineMap, 2> indexingMaps = {identity, identity};
-    // ------------------------------------------------------------
-    // Iterator types (all parallel for ReLU)
-    // ------------------------------------------------------------
-    SmallVector<utils::IteratorType> iteratorTypes(
-        resultTy.getRank(), utils::IteratorType::parallel);
+      SmallVector<AffineMap, 2> indexingMaps = {identity, identity};
+      // ------------------------------------------------------------
+      // Iterator types (all parallel for ReLU)
+      // ------------------------------------------------------------
+      SmallVector<utils::IteratorType> iteratorTypes(
+          resultTy.getRank(), utils::IteratorType::parallel);
 
-    // ------------------------------------------------------------
-    // Create linalg.generic
-    // ------------------------------------------------------------
+      // ------------------------------------------------------------
+      // Create linalg.generic
+      // ------------------------------------------------------------
 
-    auto genericOp = linalg::GenericOp::create(
-        rewriter, loc,
-        /*resultTensorTypes=*/TypeRange{resultTy},
-        /*inputs=*/ValueRange{input},
-        /*outputs=*/ValueRange{init}, indexingMaps, iteratorTypes,
-        [&](OpBuilder &builder, Location loc, ValueRange args) {
-          Value x = args[0];
+      auto genericOp = linalg::GenericOp::create(
+          rewriter, loc,
+          /*resultTensorTypes=*/TypeRange{resultTy},
+          /*inputs=*/ValueRange{input},
+          /*outputs=*/ValueRange{init}, indexingMaps, iteratorTypes,
+          [&](OpBuilder &builder, Location loc, ValueRange args)
+          {
+            Value x = args[0];
 
-          Value zero = arith::ConstantOp::create(
-              builder, loc, builder.getFloatAttr(x.getType(), 0.0));
+            Value zero = arith::ConstantOp::create(
+                builder, loc, builder.getFloatAttr(x.getType(), 0.0));
 
-          Value relu = arith::MaximumFOp::create(builder, loc, x, zero);
+            Value relu = arith::MaximumFOp::create(builder, loc, x, zero);
 
-          linalg::YieldOp::create(builder, loc, relu);
-        });
+            linalg::YieldOp::create(builder, loc, relu);
+          });
 
-    // auto genericOp = rewriter.create<linalg::GenericOp>(
-    //     loc,
-    //     /*resultTensorTypes=*/TypeRange{resultTy},
-    //     /*inputs=*/ValueRange{input},
-    //     /*outputs=*/ValueRange{init}, indexingMaps, iteratorTypes,
-    //     [&](OpBuilder &builder, Location loc, ValueRange args) {
-    //       Value x = args[0];
+      // auto genericOp = rewriter.create<linalg::GenericOp>(
+      //     loc,
+      //     /*resultTensorTypes=*/TypeRange{resultTy},
+      //     /*inputs=*/ValueRange{input},
+      //     /*outputs=*/ValueRange{init}, indexingMaps, iteratorTypes,
+      //     [&](OpBuilder &builder, Location loc, ValueRange args) {
+      //       Value x = args[0];
 
-    //       Value zero = builder.create<arith::ConstantOp>(
-    //           loc, builder.getFloatAttr(x.getType(), 0.0));
+      //       Value zero = builder.create<arith::ConstantOp>(
+      //           loc, builder.getFloatAttr(x.getType(), 0.0));
 
-    //       Value relu = builder.create<arith::MaximumFOp>(loc, x, zero);
+      //       Value relu = builder.create<arith::MaximumFOp>(loc, x, zero);
 
-    //       builder.create<linalg::YieldOp>(loc, relu);
-    //     });
+      //       builder.create<linalg::YieldOp>(loc, relu);
+      //     });
 
-    rewriter.replaceOp(op, genericOp.getResult(0));
-    return success();
-  }
-};
+      rewriter.replaceOp(op, genericOp.getResult(0));
+      return success();
+    }
+  };
 
-// struct SoftmaxToLinalg : public mlir::OpConversionPattern<mlp::SoftmaxOp> {
-//   using OpConversionPattern::OpConversionPattern;
+  // struct SoftmaxToLinalg : public mlir::OpConversionPattern<mlp::SoftmaxOp> {
+  //   using OpConversionPattern::OpConversionPattern;
 
-//   LogicalResult
-//   matchAndRewrite(mlp::SoftmaxOp op, OpAdaptor adaptor,
-//                   ConversionPatternRewriter &rewriter) const override {
-//     Location loc = op.getLoc();
-//     auto resultTy = op.getType().dyn_cast<RankedTensorType>();
-//     if (!resultTy || resultTy.getRank() != 2)
-//       return rewriter.notifyMatchFailure(op,
-//                                          "Softmax expects a 1D ranked
-//                                          tensor");
+  //   LogicalResult
+  //   matchAndRewrite(mlp::SoftmaxOp op, OpAdaptor adaptor,
+  //                   ConversionPatternRewriter &rewriter) const override {
+  //     Location loc = op.getLoc();
+  //     auto resultTy = op.getType().dyn_cast<RankedTensorType>();
+  //     if (!resultTy || resultTy.getRank() != 2)
+  //       return rewriter.notifyMatchFailure(op,
+  //                                          "Softmax expects a 1D ranked
+  //                                          tensor");
 
-//     Value input = adaptor.getInput();
-//     Type elemTy = resultTy.getElementType();
-//     MLIRContext *ctx = rewriter.getContext();
+  //     Value input = adaptor.getInput();
+  //     Type elemTy = resultTy.getElementType();
+  //     MLIRContext *ctx = rewriter.getContext();
 
-//     // 1. Create initialization tensors
-//     // ------------------------------------------------------------
-//     auto zeroAttr = rewriter.getZeroAttr(resultTy);
-//     Value initVec = rewriter.create<arith::ConstantOp>(loc, resultTy,
-//     zeroAttr);
+  //     // 1. Create initialization tensors
+  //     // ------------------------------------------------------------
+  //     auto zeroAttr = rewriter.getZeroAttr(resultTy);
+  //     Value initVec = rewriter.create<arith::ConstantOp>(loc, resultTy,
+  //     zeroAttr);
 
-//     RankedTensorType scalarTy = RankedTensorType::get({}, elemTy);
-//     auto zeroScalarAttr =
-//         DenseElementsAttr::get(scalarTy, rewriter.getFloatAttr(elemTy, 0.0));
-//     Value initScalar =
-//         rewriter.create<arith::ConstantOp>(loc, scalarTy, zeroScalarAttr);
+  //     RankedTensorType scalarTy = RankedTensorType::get({}, elemTy);
+  //     auto zeroScalarAttr =
+  //         DenseElementsAttr::get(scalarTy, rewriter.getFloatAttr(elemTy, 0.0));
+  //     Value initScalar =
+  //         rewriter.create<arith::ConstantOp>(loc, scalarTy, zeroScalarAttr);
 
-//     // 2. Step 1: Compute exp(x) elementwise
-//     // ------------------------------------------------------------
-//     auto map1D = rewriter.getMultiDimIdentityMap(resultTy.getRank());
-//     SmallVector<AffineMap, 2> expMaps = {map1D, map1D};
-//     SmallVector<utils::IteratorType, 2> parallelIter = {
-//         utils::IteratorType::parallel, utils::IteratorType::parallel};
-//     // DBS_PRINT(expMaps[0] << expMaps[1] );
-//     auto expOp = rewriter.create<linalg::GenericOp>(
-//         loc, resultTy, ValueRange{input}, ValueRange{initVec}, expMaps,
-//         parallelIter, [&](OpBuilder &b, Location loc, ValueRange args) {
-//           Value x = args[0];
-//           Value ex = b.create<math::ExpOp>(loc, x); // Compute e^x
-//           b.create<linalg::YieldOp>(loc, ex);
-//         });
+  //     // 2. Step 1: Compute exp(x) elementwise
+  //     // ------------------------------------------------------------
+  //     auto map1D = rewriter.getMultiDimIdentityMap(resultTy.getRank());
+  //     SmallVector<AffineMap, 2> expMaps = {map1D, map1D};
+  //     SmallVector<utils::IteratorType, 2> parallelIter = {
+  //         utils::IteratorType::parallel, utils::IteratorType::parallel};
+  //     // DBS_PRINT(expMaps[0] << expMaps[1] );
+  //     auto expOp = rewriter.create<linalg::GenericOp>(
+  //         loc, resultTy, ValueRange{input}, ValueRange{initVec}, expMaps,
+  //         parallelIter, [&](OpBuilder &b, Location loc, ValueRange args) {
+  //           Value x = args[0];
+  //           Value ex = b.create<math::ExpOp>(loc, x); // Compute e^x
+  //           b.create<linalg::YieldOp>(loc, ex);
+  //         });
 
-//     // 3. Step 2: Compute Sum Reduction of exp(x)
-//     // ------------------------------------------------------------
-//     SmallVector<int64_t, 1> reductionDims = {0};
-//     auto sumOp = rewriter.create<linalg::ReduceOp>(
-//         loc, expOp.getResult(0), initScalar, reductionDims,
-//         [&](OpBuilder &b, Location loc, ValueRange args) {
-//           Value val = args[0];
-//           Value acc = args[1];
-//           Value sum = b.create<arith::AddFOp>(loc, acc, val);
-//           b.create<linalg::YieldOp>(loc, sum);
-//         });
+  //     // 3. Step 2: Compute Sum Reduction of exp(x)
+  //     // ------------------------------------------------------------
+  //     SmallVector<int64_t, 1> reductionDims = {0};
+  //     auto sumOp = rewriter.create<linalg::ReduceOp>(
+  //         loc, expOp.getResult(0), initScalar, reductionDims,
+  //         [&](OpBuilder &b, Location loc, ValueRange args) {
+  //           Value val = args[0];
+  //           Value acc = args[1];
+  //           Value sum = b.create<arith::AddFOp>(loc, acc, val);
+  //           b.create<linalg::YieldOp>(loc, sum);
+  //         });
 
-//     // 4. Step 3: Divide exp(x) by the sum (Normalization)
-//     // ------------------------------------------------------------
-//     // The "Magic": Map scalar sum (0D) to the vector (1D) using (d0) -> ()
-//     auto mapScalar = AffineMap::get(1, 0, ctx); // This creates (d0) -> ()
-//     SmallVector<AffineMap, 3> divMaps = {
-//         map1D,     // expOp result (1D)
-//         mapScalar, // sumOp result (0D broadcasted to 1D)
-//         map1D      // Output (1D)
-//     };
+  //     // 4. Step 3: Divide exp(x) by the sum (Normalization)
+  //     // ------------------------------------------------------------
+  //     // The "Magic": Map scalar sum (0D) to the vector (1D) using (d0) -> ()
+  //     auto mapScalar = AffineMap::get(1, 0, ctx); // This creates (d0) -> ()
+  //     SmallVector<AffineMap, 3> divMaps = {
+  //         map1D,     // expOp result (1D)
+  //         mapScalar, // sumOp result (0D broadcasted to 1D)
+  //         map1D      // Output (1D)
+  //     };
 
-//     auto divOp = rewriter.create<linalg::GenericOp>(
-//         loc, resultTy, ValueRange{expOp.getResult(0), sumOp.getResult(0)},
-//         ValueRange{initVec}, divMaps, parallelIter,
-//         [&](OpBuilder &b, Location loc, ValueRange args) {
-//           Value ex = args[0];
-//           Value totalSum = args[1];
-//           Value result = b.create<arith::DivFOp>(loc, ex, totalSum);
-//           b.create<linalg::YieldOp>(loc, result);
-//         });
+  //     auto divOp = rewriter.create<linalg::GenericOp>(
+  //         loc, resultTy, ValueRange{expOp.getResult(0), sumOp.getResult(0)},
+  //         ValueRange{initVec}, divMaps, parallelIter,
+  //         [&](OpBuilder &b, Location loc, ValueRange args) {
+  //           Value ex = args[0];
+  //           Value totalSum = args[1];
+  //           Value result = b.create<arith::DivFOp>(loc, ex, totalSum);
+  //           b.create<linalg::YieldOp>(loc, result);
+  //         });
 
-//     // Replace the original op with the final divided result
-//     rewriter.replaceOp(op, expOp.getResult(0));
+  //     // Replace the original op with the final divided result
+  //     rewriter.replaceOp(op, expOp.getResult(0));
 
-//     return success();
-//   }
-// };
+  //     return success();
+  //   }
+  // };
 } // namespace
 
 //===----------------------------------------------------------------------===//
@@ -330,60 +341,70 @@ struct ReluOpToLinalg : public mlir::OpConversionPattern<mlp::ReluOp> {
 //
 //===----------------------------------------------------------------------===//
 
-namespace {
+namespace
+{
 
-struct MLPToLinalgLoweringPass
-    : public PassWrapper<MLPToLinalgLoweringPass, OperationPass<ModuleOp>> {
+  struct MLPToLinalgLoweringPass
+      : public PassWrapper<MLPToLinalgLoweringPass, OperationPass<ModuleOp>>
+  {
 
-  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MLPToLinalgLoweringPass)
+    MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MLPToLinalgLoweringPass)
 
-  StringRef getArgument() const override { return "mlp-lower-to-linalg"; }
-  StringRef getDescription() const override {
-    return "Lower MLP dialect matmul operations to Linalg dialect";
-  }
+    StringRef getArgument() const override { return "mlp-lower-to-linalg"; }
+    StringRef getDescription() const override
+    {
+      return "Lower MLP dialect matmul operations to Linalg dialect";
+    }
 
-  void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<linalg::LinalgDialect, tensor::TensorDialect>();
-  }
+    void getDependentDialects(DialectRegistry &registry) const override
+    {
+      registry.insert<linalg::LinalgDialect, tensor::TensorDialect>();
+    }
 
-  void runOnOperation() override {
-    ConversionTarget target(getContext());
-    target.addLegalDialect<linalg::LinalgDialect, BuiltinDialect,
-                           arith::ArithDialect, func::FuncDialect,
-                           memref::MemRefDialect, mlir::math::MathDialect>();
+    void runOnOperation() override
+    {
+      ConversionTarget target(getContext());
+      // target.addLegalDialect<linalg::LinalgDialect, BuiltinDialect,
+      //                        arith::ArithDialect, func::FuncDialect,
+      //                        memref::MemRefDialect, mlir::math::MathDialect>();
 
-    ModuleOp module = getOperation();
-    MLIRContext *ctx = module.getContext();
+      target.addLegalDialect<linalg::LinalgDialect,
+                             BuiltinDialect,
+                             arith::ArithDialect,
+                             func::FuncDialect,
+                             memref::MemRefDialect,
+                             tensor::TensorDialect,
+                             math::MathDialect>();
+      ModuleOp module = getOperation();
+      MLIRContext *ctx = module.getContext();
 
-    RewritePatternSet patterns(ctx);
+      RewritePatternSet patterns(ctx);
 
-    target.addIllegalDialect<mlir::mlp::MLPDialect>();
+      target.addIllegalDialect<mlir::mlp::MLPDialect>();
 
-    // target.addDynamicallyLegalOp<mlp::PrintOp>([](mlp::PrintOp op) {
-    //   return llvm::none_of(op->getOperandTypes(), [](Type type) {
-    //     return llvm::isa<TensorType>(type);
-    //   });
-    // });
+      // target.addDynamicallyLegalOp<mlp::PrintOp>([](mlp::PrintOp op) {
+      //   return llvm::none_of(op->getOperandTypes(), [](Type type) {
+      //     return llvm::isa<TensorType>(type);
+      //   });
+      // });
 
-    // target.addDynamicallyLegalOp<mlp::PrintOp>([](mlp::PrintOp op) {
-    //   return llvm::none_of(op->getOperandTypes(), [](Type type) {
-    //     return llvm::isa<MemRefType>(type);
-    //   });
-    // });
-    target.addDynamicallyLegalOp<mlp::PrintOp>([](mlp::PrintOp op) {
-      return llvm::none_of(op->getOperandTypes(), [](Type type) {
-        return llvm::isa<MemRefType>(type);
-      });
-    });
+      // target.addDynamicallyLegalOp<mlp::PrintOp>([](mlp::PrintOp op) {
+      //   return llvm::none_of(op->getOperandTypes(), [](Type type) {
+      //     return llvm::isa<MemRefType>(type);
+      //   });
+      // });
+      target.addDynamicallyLegalOp<mlp::PrintOp>([](mlp::PrintOp op)
+                                                 { return llvm::none_of(op->getOperandTypes(), [](Type type)
+                                                                        { return llvm::isa<MemRefType>(type); }); });
 
-    patterns.add<LinearOpToLinalg, ConstantOpToArith, PrintOpLowering,
-                 AddOpToLinalg, ReluOpToLinalg>(ctx);
+      patterns.add<LinearOpToLinalg, ConstantOpToArith, PrintOpLowering,
+                   AddOpToLinalg, ReluOpToLinalg>(ctx);
 
-    if (failed(applyPartialConversion(getOperation(), target,
-                                      std::move(patterns))))
-      signalPassFailure();
-  }
-};
+      if (failed(applyPartialConversion(getOperation(), target,
+                                        std::move(patterns))))
+        signalPassFailure();
+    }
+  };
 
 } // namespace
 
@@ -392,6 +413,7 @@ struct MLPToLinalgLoweringPass
 //
 //===----------------------------------------------------------------------===//
 
-std::unique_ptr<Pass> mlir::mlp::createLowerToLinalgPass() {
+std::unique_ptr<Pass> mlir::mlp::createLowerToLinalgPass()
+{
   return std::make_unique<MLPToLinalgLoweringPass>();
 }

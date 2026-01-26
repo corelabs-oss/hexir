@@ -305,15 +305,12 @@ namespace builder
 
     Value c1 = mlp::ConstantOp::create(builder, loc, rankedtensorfTy, denseAttr1);
     Value c2 = mlp::ConstantOp::create(builder, loc, rankedtensorfTy, denseAttr2);
-    // mlp::PrintOp::create(builder,loc, c1);
-    mlp::PrintOp::create(builder, loc, c1);
-    // mlp::PrintOp::create(builder,loc, c2);
-
-    mlp::PrintOp::create(builder, loc, c2);
+    // mlp::PrintOp::create(builder, loc, c1);
+    // mlp::PrintOp::create(builder, loc, c2);
 
     Value lin = mlp::LinearOp::create(builder, loc, rankedtensorfTy, c1, c2);
 
-    mlp::PrintOp::create(builder, loc, lin);
+    // mlp::PrintOp::create(builder, loc, lin);
 
     // Value relu = builder.create<mlp::ReluOp::create(builder,loc, rankedtensorfTy, lin);
 
