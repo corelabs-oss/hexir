@@ -1,4 +1,4 @@
 cd build 
 
 
-cmake .. && make && ./standalone_mlir
+cmake .. && make && ./mlp_mlir

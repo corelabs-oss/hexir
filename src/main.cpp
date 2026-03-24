@@ -17,117 +17,30 @@
 #include "mlir/Conversion/UBToLLVM/UBToLLVM.h"
 #include "mlir/Conversion/VectorToSCF/VectorToSCF.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
-#include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
-#include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
-#include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
-#include "mlir/Conversion/IndexToLLVM/IndexToLLVM.h"
-#include "mlir/Conversion/LLVMCommon/TypeConverter.h"
-#include "mlir/Conversion/MathToLLVM/MathToLLVM.h"
-#include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
-#include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
-#include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
-#include "mlir/Conversion/TosaToArith/TosaToArith.h"
-#include "mlir/Conversion/UBToLLVM/UBToLLVM.h"
-#include "mlir/Conversion/VectorToSCF/VectorToSCF.h"
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Dialect/Func/Extensions/AllExtensions.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/IR/Types.h"
-#include "mlir/InitAllDialects.h"
-// #include "mlir/Dialect/Affine/Passes.h"
 #include "mlir/Dialect/Affine/Transforms/Passes.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Arith/Transforms/Passes.h"
-#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
-#include "mlir/Dialect/Func/Extensions/AllExtensions.h"
-#include "mlir/Dialect/Func/Extensions/InlinerExtension.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/Dialect/LLVMIR/LLVMTypes.h"
-#include "mlir/Dialect/LLVMIR/Transforms/InlinerInterfaceImpl.h"
-#include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
-#include "mlir/Dialect/Linalg/Passes.h"
-#include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/MemRef/Transforms/Passes.h"
-#include "mlir/Dialect/SCF/Transforms/Passes.h"
-#include "mlir/Dialect/Tosa/Transforms/Passes.h"
-#include "mlir/ExecutionEngine/ExecutionEngine.h"
-#include "mlir/ExecutionEngine/OptUtils.h"
-#include "mlir/IR/AsmState.h"
-#include "mlir/IR/Builders.h"
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/DialectRegistry.h"
-#include "mlir/IR/MLIRContext.h"
-#include "mlir/IR/Verifier.h"
-#include "mlir/InitAllExtensions.h"
-#include "mlir/Parser/Parser.h"
-#include "mlir/Pass/PassManager.h"
-#include "mlir/Support/LLVM.h"
-#include "mlir/Support/LogicalResult.h"
-#include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
-#include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
-#include "mlir/Target/LLVMIR/Dialect/NVVM/NVVMToLLVMIRTranslation.h"
-#include "mlir/Target/LLVMIR/Export.h"
-#include "mlir/Target/LLVMIR/ModuleTranslation.h"
-#include "mlir/Transforms/DialectConversion.h"
-#include "mlir/Transforms/Passes.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Verifier.h"
-#include "mlir/Dialect/Bufferization/Transforms/OneShotAnalysis.h"
-#include "llvm/Support/CommandLine.h"
-#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
-#include "llvm/Support/ErrorOr.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Support/raw_ostream.h"
-#include <cassert>
-#include <iostream>
-#include <memory>
-#include <string>
-#include <system_error>
-#include <utility>
-#include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/Tensor/IR/Tensor.h"
-#include "mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"
-#include "mlir/Dialect/Linalg/IR/Linalg.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/Tensor/IR/Tensor.h"
-#include "mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"
-#include "mlir/Dialect/Linalg/IR/Linalg.h"
-#include "mlir/Dialect/Linalg/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
-
-#include "mlir/Dialect/Func/Extensions/InlinerExtension.h"
-#include "mlir/Dialect/Func/Transforms/FuncConversions.h"
-
-#include "mlir/Dialect/Affine/Transforms/Passes.h"
-#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/Arith/Transforms/Passes.h"
+#include "mlir/Dialect/Bufferization/Transforms/OneShotAnalysis.h"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Dialect/ControlFlow/Transforms/StructuralTypeConversions.h"
 #include "mlir/Dialect/Func/Extensions/AllExtensions.h"
 #include "mlir/Dialect/Func/Extensions/InlinerExtension.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Func/Transforms/FuncConversions.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/Dialect/LLVMIR/Transforms/InlinerInterfaceImpl.h"
 #include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
 #include "mlir/Dialect/SCF/Transforms/Passes.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Tosa/Transforms/Passes.h"
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
 #include "mlir/ExecutionEngine/OptUtils.h"
@@ -139,8 +52,6 @@
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Verifier.h"
 #include "mlir/InitAllDialects.h"
-#include "mlir/InitAllDialects.h"
-
 #include "mlir/InitAllExtensions.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
@@ -180,13 +91,8 @@ static cl::opt<std::string> inputFilename(cl::Positional,
                                           cl::init("-"),
                                           cl::value_desc("filename"));
 
-namespace
-{
-  enum InputType
-  {
-    MLP,
-    MLIR
-  };
+namespace {
+enum InputType { MLP, MLIR };
 } // namespace
 static cl::opt<enum InputType> inputType(
     "x", cl::init(MLP), cl::desc("Decided the kind of output desired"),
@@ -194,19 +100,17 @@ static cl::opt<enum InputType> inputType(
     cl::values(clEnumValN(MLIR, "mlir",
                           "load the input file as an MLIR file")));
 
-namespace
-{
-  enum Action
-  {
-    None,
-    DumpAST,
-    DumpMLIR,
-    DumpMLIRAffine,
-    DumpMLIRLinalg,
-    DumpMLIRLLVM,
-    DumpLLVMIR,
-    RunJIT
-  };
+namespace {
+enum Action {
+  None,
+  DumpAST,
+  DumpMLIR,
+  DumpMLIRAffine,
+  DumpMLIRLinalg,
+  DumpMLIRLLVM,
+  DumpLLVMIR,
+  RunJIT
+};
 } // namespace
 static cl::opt<enum Action> emitAction(
     "emit", cl::desc("Select the kind of output desired"),
@@ -226,8 +130,7 @@ static cl::opt<enum Action> emitAction(
 static cl::opt<bool> enableOpt("opt", cl::desc("Enable optimizations"));
 
 static int loadMLIR(mlir::MLIRContext &context,
-                    mlir::OwningOpRef<mlir::ModuleOp> &module)
-{
+                    mlir::OwningOpRef<mlir::ModuleOp> &module) {
 
   // CREATE MODULE FIRST
   module = mlir::ModuleOp::create(mlir::UnknownLoc::get(&context));
@@ -242,8 +145,7 @@ static int loadMLIR(mlir::MLIRContext &context,
 }
 
 static int loadAndProcessMLIR(mlir::MLIRContext &context,
-                              mlir::OwningOpRef<mlir::ModuleOp> &module)
-{
+                              mlir::OwningOpRef<mlir::ModuleOp> &module) {
   if (int error = loadMLIR(context, module))
     return error;
 
@@ -257,8 +159,7 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   bool isLoweringToLinalg = emitAction >= Action::DumpMLIRLinalg;
   bool isLoweringToLLVM = emitAction >= Action::DumpMLIRLLVM;
 
-  if (enableOpt || isLoweringToAffine)
-  {
+  if (enableOpt || isLoweringToAffine) {
     // Inline all functions into main and then delete them.
     // pm.addPass(mlir::createInlinerPass());
 
@@ -287,13 +188,13 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   //   }
   // }
 
-  if (isLoweringToLinalg)
-  {
+  if (isLoweringToLinalg) {
     pm.addPass(mlir::mlp::createLowerToLinalgPass());
 
     // Tensor → MemRef
     pm.addPass(mlir::bufferization::createOneShotBufferizePass());
-    pm.addPass(mlir::bufferization::createBufferDeallocationSimplificationPass());
+    pm.addPass(
+        mlir::bufferization::createBufferDeallocationSimplificationPass());
 
     // Linalg → loops
     pm.addPass(mlir::createConvertLinalgToLoopsPass());
@@ -323,7 +224,8 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   //       // optPM.addPass(mlir::affine::createLoopFusionPass());
   //       // optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
   //     }
-  //     // 1. One-Shot Bufferization (Converts Tensor constants to MemRef globals)
+  //     // 1. One-Shot Bufferization (Converts Tensor constants to MemRef
+  //     globals)
 
   //     mlir::bufferization::OneShotBufferizationOptions options;
   //     options.allowReturnAllocsFromLoops = true;
@@ -342,8 +244,7 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
 
   //   }
 
-  if (isLoweringToLLVM)
-  {
+  if (isLoweringToLLVM) {
     // Finish lowering the mlp IR to the LLVM dialect.
     pm.addPass(mlir::mlp::createLowerToLLVMPass());
     // This is necessary to have line tables emitted and basic
@@ -357,10 +258,8 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   return 0;
 }
 
-static int dumpAST()
-{
-  if (inputType == InputType::MLIR)
-  {
+static int dumpAST() {
+  if (inputType == InputType::MLIR) {
     llvm::errs() << "Can't dump a mlp AST when the input is MLIR\n";
     return 5;
   }
@@ -373,8 +272,7 @@ static int dumpAST()
   return 0;
 }
 
-static int dumpLLVMIR(mlir::ModuleOp module)
-{
+static int dumpLLVMIR(mlir::ModuleOp module) {
   // Register the translation to LLVM IR with the MLIR context.
   mlir::registerBuiltinDialectTranslation(*module->getContext());
   mlir::registerLLVMDialectTranslation(*module->getContext());
@@ -382,8 +280,7 @@ static int dumpLLVMIR(mlir::ModuleOp module)
   // Convert the module to LLVM IR in a new LLVM IR context.
   llvm::LLVMContext llvmContext;
   auto llvmModule = mlir::translateModuleToLLVMIR(module, llvmContext);
-  if (!llvmModule)
-  {
+  if (!llvmModule) {
     llvm::errs() << "Failed to emit LLVM IR\n";
     return -1;
   }
@@ -394,15 +291,13 @@ static int dumpLLVMIR(mlir::ModuleOp module)
 
   // Create target machine and configure the LLVM Module
   auto tmBuilderOrError = llvm::orc::JITTargetMachineBuilder::detectHost();
-  if (!tmBuilderOrError)
-  {
+  if (!tmBuilderOrError) {
     llvm::errs() << "Could not create JITTargetMachineBuilder\n";
     return -1;
   }
 
   auto tmOrError = tmBuilderOrError->createTargetMachine();
-  if (!tmOrError)
-  {
+  if (!tmOrError) {
     llvm::errs() << "Could not create TargetMachine\n";
     return -1;
   }
@@ -413,8 +308,7 @@ static int dumpLLVMIR(mlir::ModuleOp module)
   auto optPipeline = mlir::makeOptimizingTransformer(
       /*optLevel=*/enableOpt ? 3 : 0, /*sizeLevel=*/0,
       /*targetMachine=*/nullptr);
-  if (auto err = optPipeline(llvmModule.get()))
-  {
+  if (auto err = optPipeline(llvmModule.get())) {
     llvm::errs() << "Failed to optimize LLVM IR " << err << "\n";
     return -1;
   }
@@ -422,8 +316,7 @@ static int dumpLLVMIR(mlir::ModuleOp module)
   return 0;
 }
 
-static int runJit(mlir::ModuleOp module)
-{
+static int runJit(mlir::ModuleOp module) {
   // Initialize LLVM targets.
   llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmPrinter();
@@ -448,8 +341,7 @@ static int runJit(mlir::ModuleOp module)
 
   // Invoke the JIT-compiled function.
   auto invocationResult = engine->invokePacked("main");
-  if (invocationResult)
-  {
+  if (invocationResult) {
     llvm::errs() << "JIT invocation failed\n";
     return -1;
   }
@@ -457,8 +349,7 @@ static int runJit(mlir::ModuleOp module)
   return 0;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   // Register any command line options.
   mlir::registerAsmPrinterCLOptions();
   mlir::registerMLIRContextCLOptions();
@@ -471,19 +362,17 @@ int main(int argc, char **argv)
 
   // If we aren't dumping the AST, then we are compiling with/to MLIR.
   mlir::DialectRegistry registry;
-  registry
-      .insert<mlir::func::FuncDialect, mlir::arith::ArithDialect,
-              mlir::tensor::TensorDialect, mlir::linalg::LinalgDialect,
-              mlir::scf::SCFDialect, mlir::memref::MemRefDialect,
-              mlir::affine::AffineDialect, mlir::math::MathDialect,
-              mlir::LLVM::LLVMDialect, mlir::cf::ControlFlowDialect,
-              mlir::tosa::TosaDialect, mlir::bufferization::BufferizationDialect,
-              mlir::bufferization::BufferizationDialect, mlir::memref::MemRefDialect,
-              mlir::scf::SCFDialect>();
-
+  registry.insert<mlir::func::FuncDialect, mlir::arith::ArithDialect,
+                  mlir::tensor::TensorDialect, mlir::linalg::LinalgDialect,
+                  mlir::scf::SCFDialect, mlir::memref::MemRefDialect,
+                  mlir::affine::AffineDialect, mlir::math::MathDialect,
+                  mlir::LLVM::LLVMDialect, mlir::cf::ControlFlowDialect,
+                  mlir::tosa::TosaDialect,
+                  mlir::bufferization::BufferizationDialect,
+                  mlir::bufferization::BufferizationDialect,
+                  mlir::memref::MemRefDialect, mlir::scf::SCFDialect>();
 
   MLIRContext context(registry);
-
 
   // Register external models for bufferization
   // mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
@@ -491,7 +380,7 @@ int main(int argc, char **argv)
   // mlir::linalg::registerBufferizableOpInterfaceExternalModels(registry);
   // mlir::bufferization::registerOneShotBufferizePass();
 
-  //mlir::registerAllDialects(registry);
+  // mlir::registerAllDialects(registry);
 
   mlir::func::registerAllExtensions(registry);
   mlir::LLVM::registerInlinerInterface(registry);
@@ -508,8 +397,7 @@ int main(int argc, char **argv)
 
   // If we aren't exporting to non-mlir, then we are done.
   bool isOutputingMLIR = emitAction <= Action::DumpMLIRLLVM;
-  if (isOutputingMLIR)
-  {
+  if (isOutputingMLIR) {
     module->dump();
     return 0;
   }
