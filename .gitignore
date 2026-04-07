@@ -1,0 +1,8 @@
+scripts/mlp_mlir
+*.o
+*.out
+*.ll
+*.bc
+*.ptx
+build/
+scripts/mlp_mlir

@@ -103,9 +103,9 @@ func::FuncOp createMainFunction(MLIRContext &ctx, ModuleOp module) {
   }
 #endif
 
-  Value c1 = arith::ConstantOp::create(builder, builder.getUnknownLoc(),
+  [[maybe_unused]] Value c1 = arith::ConstantOp::create(builder, builder.getUnknownLoc(),
                                        builder.getF32FloatAttr(1.0));
-  Value c2 = arith::ConstantOp::create(builder, builder.getUnknownLoc(),
+[[maybe_unused]]  Value c2 = arith::ConstantOp::create(builder, builder.getUnknownLoc(),
                                        builder.getF32FloatAttr(2.0));
 
   //  [[maybe_unused]] Value add = builder
@@ -296,7 +296,7 @@ func::FuncOp createMLPLinearFunction(MLIRContext &ctx,
   auto tensor1DTy = RankedTensorType::get({1, N}, f64); // Batch is 1
   // auto tensor1DTy = RankedTensorType::get({1,N}, f64); // Batch is 1
   auto denseAttr1D = mlir::DenseElementsAttr::get(tensor1DTy, vals1D);
-  Value c1D = mlp::ConstantOp::create(builder, loc, tensor1DTy, denseAttr1D);
+  [[maybe_unused]] Value c1D = mlp::ConstantOp::create(builder, loc, tensor1DTy, denseAttr1D);
 
   auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals1);
   auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals2);
@@ -306,7 +306,7 @@ func::FuncOp createMLPLinearFunction(MLIRContext &ctx,
   // mlp::PrintOp::create(builder, loc, c1);
   // mlp::PrintOp::create(builder, loc, c2);
 
-  Value lin = mlp::LinearOp::create(builder, loc, rankedtensorfTy, c1, c2);
+  [[maybe_unused]] Value lin = mlp::LinearOp::create(builder, loc, rankedtensorfTy, c1, c2);
 
   // mlp::PrintOp::create(builder, loc, lin);
 
@@ -421,7 +421,7 @@ func::FuncOp createMLPReluFunction(MLIRContext &ctx,
   auto f64 = builder.getF64Type();
 
   auto rankedtensorTy = RankedTensorType::get({4}, f64);
-  auto unrankedtensorTy = UnrankedTensorType::get(f64);
+  [[maybe_unused]] auto unrankedtensorTy = UnrankedTensorType::get(f64);
 
   auto funcType = builder.getFunctionType({}, {});
 
