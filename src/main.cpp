@@ -16,37 +16,48 @@
 #include "mlir/Conversion/TosaToArith/TosaToArith.h"
 #include "mlir/Conversion/UBToLLVM/UBToLLVM.h"
 #include "mlir/Conversion/VectorToSCF/VectorToSCF.h"
+#include "mlir/Dialect/AMDGPU/IR/AMDGPUDialect.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Affine/Transforms/Passes.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Arith/Transforms/Passes.h"
+#include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Bufferization/Transforms/OneShotAnalysis.h"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
+#include "mlir/Dialect/Bufferization/Transforms/Transforms.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Dialect/ControlFlow/Transforms/StructuralTypeConversions.h"
+//#include "mlir/Dialect/Func/Transforms/FuncBufferizableOpInterfaceImpl.h" FROM IREE SRC CODE
 #include "mlir/Dialect/Func/Extensions/AllExtensions.h"
 #include "mlir/Dialect/Func/Extensions/InlinerExtension.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Func/Transforms/FuncConversions.h"
+#include "mlir/Dialect/GPU/IR/GPUDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/Dialect/LLVMIR/Transforms/InlinerInterfaceImpl.h"
 #include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Linalg/Passes.h"
+#include "mlir/Dialect/Linalg/Transforms/BufferizableOpInterfaceImpl.h"
+#include "mlir/Dialect/Linalg/Transforms/Transforms.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/SCF/Transforms/Passes.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Tosa/Transforms/Passes.h"
+#include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
 #include "mlir/ExecutionEngine/OptUtils.h"
 #include "mlir/IR/AsmState.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"
 #include "mlir/IR/DialectRegistry.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Types.h"
@@ -54,6 +65,7 @@
 #include "mlir/InitAllDialects.h"
 #include "mlir/InitAllExtensions.h"
 #include "mlir/Parser/Parser.h"
+#include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
@@ -63,6 +75,7 @@
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Transforms/Passes.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
@@ -138,9 +151,11 @@ static int loadMLIR(mlir::MLIRContext &context,
   context.getOrLoadDialect<mlir::func::FuncDialect>();
   context.getOrLoadDialect<mlir::mlp::MLPDialect>();
 
+  // Register bufferizable op interfaces for those dialects
+
   createMLPLinearFunction(context, *module);
   // createMLPAddFunction(context, *module);
-  // createMLPReluFunction(context, *module);
+  //  createMLPReluFunction(context, *module);
   return 0;
 }
 
@@ -162,7 +177,7 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   if (enableOpt || isLoweringToAffine) {
     // Inline all functions into main and then delete them.
     // pm.addPass(mlir::createInlinerPass());
-
+    std::cout << "\n enableOpt || isLoweringToAffine " << std::endl;
     // Now that there is only one function, we can infer the shapes of each of
     // the operations.
     mlir::OpPassManager &optPM = pm.nest<mlir::mlp::FuncOp>();
@@ -174,6 +189,7 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
 
   // if (isLoweringToAffine) {
   //   // Partially lower the mlp dialect.
+  //   std::cout << "\n isLoweringToAffine " << std::endl;
   //   pm.addPass(mlir::mlp::createLowerToAffinePass());
 
   //   // Add a few cleanups post lowering.
@@ -191,58 +207,61 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   if (isLoweringToLinalg) {
     pm.addPass(mlir::mlp::createLowerToLinalgPass());
 
-    // Tensor → MemRef
     pm.addPass(mlir::bufferization::createOneShotBufferizePass());
-    pm.addPass(
-        mlir::bufferization::createBufferDeallocationSimplificationPass());
 
-    // Linalg → loops
-    pm.addPass(mlir::createConvertLinalgToLoopsPass());
+    //   // // Tensor → MemRef
+    //   pm.addPass(mlir::bufferization::createOneShotBufferizePass());
 
-    // SCF → CFG
-    pm.addPass(mlir::createSCFToControlFlowPass());
+    //   // pm.addPass(
+    //   // mlir::bufferization::createBufferDeallocationSimplificationPass());
 
-    // LLVM lowering
-    // pm.addPass(mlir::createConvertArithToLLVMPass());
-    // pm.addPass(mlir::createConvertMemRefToLLVMPass());
-    // pm.addPass(mlir::createConvertFuncToLLVMPass());
+    //   // // Linalg → loops
+    //   // pm.addPass(mlir::createConvertLinalgToLoopsPass());
+
+    //   // // SCF → CFG
+    //   // pm.addPass(mlir::createSCFToControlFlowPass());
+
+    //   // LLVM lowering
+    //   // pm.addPass(mlir::createConvertArithToLLVMPass());
+    //   // pm.addPass(mlir::createConvertMemRefToLLVMPass());
+    //   // pm.addPass(mlir::createConvertFuncToLLVMPass());
+    // }
+
+    //   if (isLoweringToLinalg)
+    //   {
+    //     // Partially lower the mlp dialect.
+    //     pm.addPass(mlir::mlp::createLowerToLinalgPass());
+
+    //     // Add a few cleanups post lowering.
+    //     // mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
+    //     // optPM.addPass(mlir::createCanonicalizerPass());
+    //     // optPM.addPass(mlir::createCSEPass());
+
+    //     // Add optimizations if enabled.
+    //     if (enableOpt)
+    //     {
+    //       // optPM.addPass(mlir::affine::createLoopFusionPass());
+    //       //
+    //       optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
+    //     }
+    //     // 1. One-Shot Bufferization (Converts Tensor constants to MemRef
+    //     globals)
+
+    //     mlir::bufferization::OneShotBufferizationOptions options;
+    //     options.allowReturnAllocsFromLoops = true;
+    //     //pm.addPass(mlir::bufferization::createOneShotBufferizePass());
+    //     // //pm.addPass(mlir::bufferization::createBufferDeallocationPass());
+    //     // pm.addPass(mlir::createConvertLinalgToLoopsPass());
+    //     //  pm.addPass(mlir::createConvertSCFToCFPass());
+    //     //   ------------------------------------------------------------
+    //     //   pm.addPass(mlir::createConvertArithToLLVMPass());
+    //     //   pm.addPass(mlir::createConvertMemRefToLLVMPass());
+    //     //   pm.addPass(mlir::createConvertFuncToLLVMPass());
+    //     //   pm.addPass(mlir::tosa::createTosaToArith());
+    //     llvm::errs() << "\n=== PASS PIPELINE ===\n";
+    // pm.printAsTextualPipeline(llvm::errs());
+    // llvm::errs() << "\n====================\n";
   }
-
-  //   if (isLoweringToLinalg)
-  //   {
-  //     // Partially lower the mlp dialect.
-  //     pm.addPass(mlir::mlp::createLowerToLinalgPass());
-
-  //     // Add a few cleanups post lowering.
-  //     // mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
-  //     // optPM.addPass(mlir::createCanonicalizerPass());
-  //     // optPM.addPass(mlir::createCSEPass());
-
-  //     // Add optimizations if enabled.
-  //     if (enableOpt)
-  //     {
-  //       // optPM.addPass(mlir::affine::createLoopFusionPass());
-  //       // optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
-  //     }
-  //     // 1. One-Shot Bufferization (Converts Tensor constants to MemRef
-  //     globals)
-
-  //     mlir::bufferization::OneShotBufferizationOptions options;
-  //     options.allowReturnAllocsFromLoops = true;
-  //     //pm.addPass(mlir::bufferization::createOneShotBufferizePass());
-  //     //  //pm.addPass(mlir::bufferization::createBufferDeallocationPass());
-  //     // pm.addPass(mlir::createConvertLinalgToLoopsPass());
-  //     //  pm.addPass(mlir::createConvertSCFToCFPass());
-  //     //   ------------------------------------------------------------
-  //     //   pm.addPass(mlir::createConvertArithToLLVMPass());
-  //     //   pm.addPass(mlir::createConvertMemRefToLLVMPass());
-  //     //   pm.addPass(mlir::createConvertFuncToLLVMPass());
-  //     //   pm.addPass(mlir::tosa::createTosaToArith());
-  //     llvm::errs() << "\n=== PASS PIPELINE ===\n";
-  // pm.printAsTextualPipeline(llvm::errs());
-  // llvm::errs() << "\n====================\n";
-
-  //   }
 
   if (isLoweringToLLVM) {
     // Finish lowering the mlp IR to the LLVM dialect.
@@ -362,23 +381,22 @@ int main(int argc, char **argv) {
 
   // If we aren't dumping the AST, then we are compiling with/to MLIR.
   mlir::DialectRegistry registry;
-  registry.insert<mlir::func::FuncDialect, mlir::arith::ArithDialect,
+registry.insert<mlir::func::FuncDialect, mlir::arith::ArithDialect,
                   mlir::tensor::TensorDialect, mlir::linalg::LinalgDialect,
                   mlir::scf::SCFDialect, mlir::memref::MemRefDialect,
                   mlir::affine::AffineDialect, mlir::math::MathDialect,
                   mlir::LLVM::LLVMDialect, mlir::cf::ControlFlowDialect,
                   mlir::tosa::TosaDialect,
-                  mlir::bufferization::BufferizationDialect,
-                  mlir::bufferization::BufferizationDialect,
-                  mlir::memref::MemRefDialect, mlir::scf::SCFDialect>();
+                  mlir::bufferization::BufferizationDialect>();
+
+  // Register bufferizable op interface external models
+  mlir::bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::linalg::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
+
 
   MLIRContext context(registry);
-
-  // Register external models for bufferization
-  // mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
-  // mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
-  // mlir::linalg::registerBufferizableOpInterfaceExternalModels(registry);
-  // mlir::bufferization::registerOneShotBufferizePass();
 
   // mlir::registerAllDialects(registry);
 

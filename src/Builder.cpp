@@ -248,11 +248,12 @@ func::FuncOp createMLPAddFunction(MLIRContext &ctx,
       mlp::ConstantOp::create(builder, loc, rankedtensorf64Ty, denseAttr2);
 
   Value add = mlp::AddOp::create(builder, loc, rankedtensorf64Ty, c1, c2);
-  // Value add = builder.create<mlp::ReluOp::create(builder,loc,
-  // rankedtensorf64Ty, c1);
+  // Value add =
+  //     builder.create < mlp::ReluOp::create(builder, loc, rankedtensorf64Ty,
+  //     c1);
 
-  //  mlp::PrintOp::create(builder,builder.getUnknownLoc(), c1);
-  //  mlp::PrintOp::create(builder,builder.getUnknownLoc(), c2);
+  mlp::PrintOp::create(builder, builder.getUnknownLoc(), c1);
+  mlp::PrintOp::create(builder, builder.getUnknownLoc(), c2);
   mlp::PrintOp::create(builder, builder.getUnknownLoc(), add);
 
   func::ReturnOp::create(builder, loc);
@@ -309,13 +310,13 @@ func::FuncOp createMLPLinearFunction(MLIRContext &ctx,
 
   // mlp::PrintOp::create(builder, loc, lin);
 
-  // Value relu = builder.create<mlp::ReluOp::create(builder,loc,
-  // rankedtensorfTy, lin);
+  // Value relu =
+  //     builder.create < mlp::ReluOp::create(builder, loc, rankedtensorfTy, lin);
 
   // Value softmax = builder.create<mlp::SoftmaxOp::create(builder,loc,
   // tensor1DTy, c1D);
 
-  // mlp::PrintOp::create(builder,loc, relu);
+  // mlp::PrintOp::create(builder, loc, relu);
 
   mlir::func::ReturnOp::create(builder, loc);
 
