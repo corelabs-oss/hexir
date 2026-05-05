@@ -1,6 +1,7 @@
 #include "Dialect.h"
 #include "Passes.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Func/Transforms/FuncConversions.h"
@@ -90,8 +91,20 @@ namespace
     matchAndRewrite(mlp::PrintOp op, OpAdaptor adaptor,
                     ConversionPatternRewriter &rewriter) const final
     {
-      // We don't lower "MLP.print" in this pass, but we need to update its
-      // operands.
+      Value input = adaptor.getInput();
+
+      if (auto tensorType = llvm::dyn_cast<RankedTensorType>(input.getType()))
+      {
+        auto memrefType =
+            MemRefType::get(tensorType.getShape(), tensorType.getElementType());
+        Value buffer = bufferization::ToBufferOp::create(
+            rewriter, op.getLoc(), memrefType, input,
+            /*read_only=*/true);
+
+        rewriter.replaceOpWithNewOp<mlp::PrintOp>(op, buffer);
+        return success();
+      }
+
       rewriter.modifyOpInPlace(op,
                                [&]
                                { op->setOperands(adaptor.getOperands()); });
@@ -358,7 +371,8 @@ namespace
 
     void getDependentDialects(DialectRegistry &registry) const override
     {
-      registry.insert<linalg::LinalgDialect, tensor::TensorDialect>();
+      registry.insert<bufferization::BufferizationDialect, linalg::LinalgDialect,
+                      tensor::TensorDialect>();
     }
 
     void runOnOperation() override
@@ -372,6 +386,7 @@ namespace
                              BuiltinDialect,
                              arith::ArithDialect,
                              func::FuncDialect,
+                             bufferization::BufferizationDialect,
                              memref::MemRefDialect,
                              tensor::TensorDialect,
                              math::MathDialect>();
@@ -394,8 +409,8 @@ namespace
       //   });
       // });
       target.addDynamicallyLegalOp<mlp::PrintOp>([](mlp::PrintOp op)
-                                                 { return llvm::none_of(op->getOperandTypes(), [](Type type)
-                                                                        { return llvm::isa<MemRefType>(type); }); });
+                                                 { return llvm::all_of(op->getOperandTypes(), [](Type type)
+                                                                       { return llvm::isa<MemRefType>(type); }); });
 
       patterns.add<LinearOpToLinalg, ConstantOpToArith, PrintOpLowering,
                    AddOpToLinalg, ReluOpToLinalg>(ctx);

@@ -21,7 +21,9 @@
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/GPU/IR/GPUDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/LLVMIR/NVVMDialect.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
@@ -54,7 +56,9 @@
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
 #include "mlir/ExecutionEngine/OptUtils.h"
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
+#include "mlir/Target/LLVMIR/Dialect/GPU/GPUToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
+#include "mlir/Target/LLVMIR/Dialect/NVVM/NVVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
 
 #include "llvm/ADT/StringRef.h"
@@ -105,6 +109,8 @@ enum Action {
   DumpMLIR,
   DumpMLIRAffine,
   DumpMLIRLinalg,
+  DumpMLIRHetero,
+  DumpMLIRGPU,
   DumpMLIRLLVM,
   DumpLLVMIR,
   RunJIT
@@ -118,6 +124,10 @@ static cl::opt<enum Action> emitAction(
                           "output the MLIR dump after affine lowering")),
     cl::values(clEnumValN(DumpMLIRLinalg, "mlir-linalg",
                           "output the MLIR dump after linalg lowering")),
+    cl::values(clEnumValN(DumpMLIRHetero, "mlir-hetero",
+                          "output MLIR after CPU/CUDA partitioning")),
+    cl::values(clEnumValN(DumpMLIRGPU, "mlir-gpu",
+                          "output MLIR after lowering CUDA partitions to GPU")),
     cl::values(clEnumValN(DumpMLIRLLVM, "mlir-llvm",
                           "output the MLIR dump after llvm lowering")),
     cl::values(clEnumValN(DumpLLVMIR, "llvm", "output the LLVM IR dump")),
@@ -154,6 +164,8 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
 
   // Check to see what granularity of MLIR we are compiling to.
   bool isLoweringToLinalg = emitAction >= Action::DumpMLIRLinalg;
+  bool isPartitioningForHetero = emitAction >= Action::DumpMLIRHetero;
+  bool isLoweringCudaToGpu = emitAction == Action::DumpMLIRGPU;
   bool isLoweringToLLVM = emitAction >= Action::DumpMLIRLLVM;
 
   if (enableOpt || isLoweringToLinalg) {
@@ -172,10 +184,34 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   if (isLoweringToLinalg) {
     pm.addPass(mlir::mlp::createLowerToLinalgPass());
 
+    if (emitAction == Action::DumpMLIRLinalg) {
+      if (mlir::failed(pm.run(*module)))
+        return 4;
+      return 0;
+    }
+
+    if (isPartitioningForHetero)
+      pm.addPass(mlir::mlp::createPartitionPass());
+
+    if (emitAction == Action::DumpMLIRHetero) {
+      if (mlir::failed(pm.run(*module)))
+        return 4;
+      return 0;
+    }
+
     // Tensor → MemRef
     pm.addPass(mlir::bufferization::createOneShotBufferizePass());
     pm.addPass(
         mlir::bufferization::createBufferDeallocationSimplificationPass());
+
+    if (isLoweringCudaToGpu)
+      pm.addPass(mlir::mlp::createCudaGpuLoweringPass());
+
+    if (emitAction == Action::DumpMLIRGPU) {
+      if (mlir::failed(pm.run(*module)))
+        return 4;
+      return 0;
+    }
 
     // Linalg → loops
     pm.addPass(mlir::createConvertLinalgToLoopsPass());
@@ -256,7 +292,9 @@ static int dumpAST() {
 static int dumpLLVMIR(mlir::ModuleOp module) {
   // Register the translation to LLVM IR with the MLIR context.
   mlir::registerBuiltinDialectTranslation(*module->getContext());
+  mlir::registerGPUDialectTranslation(*module->getContext());
   mlir::registerLLVMDialectTranslation(*module->getContext());
+  mlir::registerNVVMDialectTranslation(*module->getContext());
 
   // Convert the module to LLVM IR in a new LLVM IR context.
   llvm::LLVMContext llvmContext;
@@ -305,7 +343,9 @@ static int runJit(mlir::ModuleOp module) {
   // Register the translation from MLIR to LLVM IR, which must happen before we
   // can JIT-compile.
   mlir::registerBuiltinDialectTranslation(*module->getContext());
+  mlir::registerGPUDialectTranslation(*module->getContext());
   mlir::registerLLVMDialectTranslation(*module->getContext());
+  mlir::registerNVVMDialectTranslation(*module->getContext());
 
   // An optimization pipeline to use within the execution engine.
   auto optPipeline = mlir::makeOptimizingTransformer(
@@ -345,6 +385,7 @@ int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
   registry.insert<mlir::func::FuncDialect, mlir::arith::ArithDialect,
                   mlir::tensor::TensorDialect, mlir::linalg::LinalgDialect,
+                  mlir::gpu::GPUDialect, mlir::NVVM::NVVMDialect,
                   mlir::scf::SCFDialect, mlir::memref::MemRefDialect,
                   mlir::affine::AffineDialect, mlir::math::MathDialect,
                   mlir::LLVM::LLVMDialect, mlir::cf::ControlFlowDialect,

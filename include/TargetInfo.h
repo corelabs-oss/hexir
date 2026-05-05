@@ -1,8 +1,9 @@
 #pragma once
 
 #include "mlir/IR/Operation.h"
-#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSet.h"
+#include <string>
 
 namespace mlir {
 namespace mlp {
@@ -24,8 +25,8 @@ public:
 private:
   TargetSupport();
 
-  llvm::DenseMap<StringAttr, llvm::StringSet<>> opSupports_;
-  llvm::DenseMap<StringAttr, StringAttr> opPreferred_;
+  llvm::StringMap<llvm::StringSet<>> opSupports_;
+  llvm::StringMap<std::string> opPreferred_;
 };
 
 } // namespace mlp

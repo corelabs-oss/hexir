@@ -306,17 +306,16 @@ func::FuncOp createMLPLinearFunction(MLIRContext &ctx,
   // mlp::PrintOp::create(builder, loc, c1);
   // mlp::PrintOp::create(builder, loc, c2);
 
-  [[maybe_unused]] Value lin = mlp::LinearOp::create(builder, loc, rankedtensorfTy, c1, c2);
+  Value lin = mlp::LinearOp::create(builder, loc, rankedtensorfTy, c1, c2);
 
   // mlp::PrintOp::create(builder, loc, lin);
 
-  // Value relu =
-  //     builder.create < mlp::ReluOp::create(builder, loc, rankedtensorfTy, lin);
+  Value relu = mlp::ReluOp::create(builder, loc, rankedtensorfTy, lin);
 
   // Value softmax = builder.create<mlp::SoftmaxOp::create(builder,loc,
   // tensor1DTy, c1D);
 
-  // mlp::PrintOp::create(builder, loc, relu);
+  mlp::PrintOp::create(builder, loc, relu);
 
   mlir::func::ReturnOp::create(builder, loc);
 

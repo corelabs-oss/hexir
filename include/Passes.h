@@ -32,6 +32,12 @@ std::unique_ptr<mlir::Pass> createLowerToLLVMPass();
 // Create pass mlp-to-linalg
 std::unique_ptr<mlir::Pass> createLowerToLinalgPass();
 
+// Annotate supported ops with their selected CPU/CUDA device.
+std::unique_ptr<mlir::Pass> createPartitionPass();
+
+// Lower CUDA-partitioned linalg ops to the MLIR GPU dialect.
+std::unique_ptr<mlir::Pass> createCudaGpuLoweringPass();
+
 } // namespace mlp
 } // namespace mlir
 

@@ -1,63 +1,53 @@
 #include "TargetInfo.h"
 #include "Dialect.h"
-#include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/IR/MLIRContext.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
+#include "llvm/ADT/ArrayRef.h"
 
 namespace mlir {
 namespace mlp {
 
-// TargetSupport &amp;TargetSupport::getInstance() {
-//   static TargetSupport instance;
-//   return instance;
-// }
+TargetSupport &TargetSupport::getInstance() {
+  static TargetSupport instance;
+  return instance;
+}
 
-// TargetSupport::TargetSupport() {
-//   static MLIRContext staticCtx;
-//   MLIRContext *ctx = &amp;staticCtx;
+TargetSupport::TargetSupport() {
+  registerSupport("mlp.linear", {"cpu", "cuda"});
+  registerSupport("mlp.add", {"cpu", "cuda"});
+  registerSupport("mlp.relu", {"cpu", "cuda"});
 
-//   // MLP ops support (CPU only)
-//   registerSupport("mlp.linear", {"cpu"});
-//   registerSupport("mlp.add", {"cpu"});
-//   registerSupport("mlp.relu", {"cpu"});
+  registerSupport("linalg.matmul", {"cpu", "cuda"});
+  registerSupport("linalg.add", {"cpu", "cuda"});
+  registerSupport("linalg.generic", {"cpu", "cuda"});
 
-//   // Linalg ops support (CPU only)
-//   registerSupport("linalg.matmul", {"cpu"});
-//   registerSupport("linalg.add", {"cpu"});
-//   registerSupport("linalg.generic", {"cpu"}); // ReLU
+  opPreferred_["mlp.linear"] = "cpu";
+  opPreferred_["linalg.matmul"] = "cpu";
+  opPreferred_["mlp.add"] = "cpu";
+  opPreferred_["mlp.relu"] = "cpu";
+  opPreferred_["linalg.add"] = "cpu";
+  opPreferred_["linalg.generic"] = "cpu";
+}
 
-//   // Preferred: CPU for all
-//   opPreferred_[StringAttr::get(ctx, "mlp.linear")] = StringAttr::get(ctx,
-//   "cpu"); opPreferred_[StringAttr::get(ctx, "linalg.matmul")] =
-//   StringAttr::get(ctx, "cpu"); opPreferred_[StringAttr::get(ctx,
-//   "linalg.add")] = StringAttr::get(ctx, "cpu");
-//   opPreferred_[StringAttr::get(ctx, "linalg.generic")] = StringAttr::get(ctx,
-//   "cpu");
-// }
+bool TargetSupport::isSupported(Operation *op, StringRef target) const {
+  auto it = opSupports_.find(op->getName().getStringRef());
+  if (it == opSupports_.end())
+    return target == "cpu";
+  return it->second.contains(target);
+}
 
-// bool TargetSupport::isSupported(Operation *op, StringRef target) const {
-//   MLIRContext *ctx = op->getContext();
-//   auto key = StringAttr::get(ctx, op->getName().getStringRef());
-//   auto it = opSupports_.find(key);
-//   if (it == opSupports_.end()) return target == "cpu"; // CPU fallback
-//   return it->second.count(target);
-// }
+StringRef TargetSupport::getPreferredTarget(Operation *op) const {
+  auto it = opPreferred_.find(op->getName().getStringRef());
+  if (it == opPreferred_.end())
+    return "cpu";
+  return it->second;
+}
 
-// StringRef TargetSupport::getPreferredTarget(Operation *op) const {
-//   MLIRContext *ctx = op->getContext();
-//   auto key = StringAttr::get(ctx, op->getName().getStringRef());
-//   auto it = opPreferred_.find(key);
-//   return it != opPreferred_.end() ? it->second.getValue() : "cpu";
-// }
-
-// void TargetSupport::registerSupport(StringRef opName,
-// llvm::ArrayRef<StringRef> targets) {
-//   static MLIRContext staticCtx;
-//   MLIRContext *ctx = &amp;staticCtx;
-//   auto key = StringAttr::get(ctx, opName);
-//   llvm::StringSet<> &amp;opSet = opSupports_[key];
-//   for (auto tgt : targets)
-//     opSet.insert(tgt);
-// }
+void TargetSupport::registerSupport(StringRef opName,
+                                    llvm::ArrayRef<StringRef> targets) {
+  llvm::StringSet<> &opSet = opSupports_[opName];
+  for (StringRef target : targets)
+    opSet.insert(target);
+}
 
 } // namespace mlp
 } // namespace mlir

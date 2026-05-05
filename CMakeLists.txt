@@ -41,7 +41,7 @@ add_public_tablegen_target(CombineIncGen)
 
 
 file(
-  GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+  GLOB CCMLIR_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
   # GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/cpu/*.cpp"
   # GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/gpu/*.cpp"
   # GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/metal/*.cpp"
@@ -93,12 +93,19 @@ target_link_libraries(
           MLIRPass
           MLIRTransforms
           MLIRFuncDialect
+          MLIRGPUDialect
+          MLIRGPUToLLVMIRTranslation
+          MLIRGPUToNVVMTransforms
+          MLIRGPUTransforms
           MLIRArithDialect
           MLIRMemRefDialect
           MLIRLinalgDialect
           MLIRAffineDialect
           MLIRSCFDialect
           MLIRLLVMDialect
+          MLIRNVVMDialect
+          MLIRNVVMToLLVMIRTranslation
+          MLIRNVVMToLLVM
           MLIRTensorDialect
           MLIRFuncTransforms
           MLIRLinalgTransforms
