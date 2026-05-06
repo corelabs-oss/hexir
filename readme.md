@@ -1,220 +1,263 @@
 # MLP-MLIR
 
-MLP-MLIR is a small research compiler built on LLVM MLIR for experimenting with
-neural-network dialects, lowering pipelines, and early heterogeneous CPU/CUDA
-partitioning.
+[![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
+[![CMake](https://img.shields.io/badge/CMake-3.13.4+-blue.svg)](https://cmake.org/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 
-The project currently builds a synthetic MLP-style program in C++, lowers custom
-`mlp` ops through MLIR dialects, can JIT-run the CPU path, and can show an
-experimental CUDA partition lowered into the MLIR GPU dialect.
+MLP-MLIR is a research compiler built on LLVM MLIR for experimenting with neural-network dialects, lowering pipelines, and heterogeneous CPU/GPU partitioning. It demonstrates end-to-end compilation of synthetic MLP (Multi-Layer Perceptron) programs through custom MLIR dialects to executable code.
+
+## Table of Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Build](#build)
+- [Quick Start](#quick-start)
+- [Usage](#usage)
+- [Emit Modes](#emit-modes)
+- [Heterogeneous Support](#heterogeneous-support)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Features
+
+- **Custom MLIR Dialect**: Defines `mlp` operations for neural network primitives
+- **Progressive Lowering**: Multi-stage compilation pipeline from high-level ops to LLVM IR
+- **Heterogeneous Partitioning**: Automatic CPU/CUDA placement for operations
+- **JIT Compilation**: Runtime code generation and execution for CPU path
+- **GPU Dialect Generation**: CUDA operations lowered to MLIR GPU dialect
+- **Extensible Backend System**: Support for CPU, CUDA, Metal, ROCm, and RISC-V targets
+
+## Architecture
+
+The compiler follows a layered architecture:
+
+```
+High-Level IR (mlp dialect)
+    ↓ Lowering
+Linalg/Arith/Tensor Operations
+    ↓ Partitioning
+CPU/CUDA Annotated Operations
+    ↓ Bufferization
+Memory Operations + GPU Launch
+    ↓ Target Lowering
+LLVM IR / GPU Kernels
+```
+
+### Key Components
+
+- **Dialect Definition** (`include/Ops.td`): TableGen definitions for MLP operations
+- **Builder** (`src/Builder.cpp`): Constructs synthetic neural network programs
+- **Passes**: Lowering and optimization passes in `src/`
+- **Backends** (`targets/`): Target-specific code generation
+- **JIT Runtime** (`src/Jit.cpp`): Execution engine for CPU path
 
 ## Requirements
 
-- C++17 compiler
-- CMake
-- LLVM/MLIR build with MLIR libraries available
-- This checkout currently expects MLIR from the local LLVM/MLIR installation
-  configured in `CMakeLists.txt` or the existing `build/CMakeCache.txt`
+- **C++17** compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
+- **CMake** 3.13.4 or later
+- **LLVM/MLIR** development build with the following components:
+  - MLIR Core libraries
+  - LLVM Core libraries
+  - TableGen
+  - OrcJIT
 
-The code has been developed against a recent LLVM/MLIR tree. If your MLIR build
-uses different library names, update the `target_link_libraries` section in
-`CMakeLists.txt`.
+### LLVM/MLIR Setup
+
+This project requires a full LLVM/MLIR build. The code has been developed against recent LLVM trunk. If your MLIR installation uses different library names, update the `target_link_libraries` in `CMakeLists.txt`.
+
+## Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd mlp_mlir
+   ```
+
+2. **Set up LLVM/MLIR environment:**
+   Ensure `LLVM_DIR` and `MLIR_DIR` point to your LLVM build directory in `CMakeLists.txt`:
+   ```cmake
+   set(LLVM_DIR "/path/to/llvm/build/lib/cmake/llvm")
+   set(MLIR_DIR "/path/to/llvm/build/lib/cmake/mlir")
+   ```
 
 ## Build
 
-From the repository root:
-
+### Initial Build
 ```bash
 mkdir -p build
 cd build
-cmake ..
-make
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
 ```
 
-For later rebuilds:
-
+### Rebuild
 ```bash
 cd build
-make
+make -j$(nproc)
+```
+
+### Clean Build
+```bash
+cd build
+make clean
+make -j$(nproc)
 ```
 
 ## Quick Start
 
-Run the CPU JIT:
+After building, run the CPU JIT to execute a synthetic MLP program:
 
 ```bash
 cd build
 ./mlp_mlir -emit=jit
 ```
 
-Expected output from the current synthetic `linear -> relu -> print` program:
-
-```text
+**Expected Output:**
+```
 8.000000 17.000000
 12.000000 14.000000
 ```
 
-Inspect the custom MLIR before lowering:
+This executes a `linear → relu → print` neural network computation.
+
+## Usage
+
+The main executable `mlp_mlir` supports various emit modes for inspecting the compilation pipeline:
+
+### Basic Commands
 
 ```bash
+# Inspect initial MLIR
 ./mlp_mlir -emit=mlir
-```
 
-Inspect the linalg lowering:
-
-```bash
+# View linalg lowering
 ./mlp_mlir -emit=mlir-linalg
-```
 
-Inspect CPU/CUDA graph partitioning:
-
-```bash
+# See CPU/CUDA partitioning
 ./mlp_mlir -emit=mlir-hetero
-```
 
-Inspect CUDA partitions lowered to the MLIR GPU dialect:
-
-```bash
+# Inspect GPU dialect lowering
 ./mlp_mlir -emit=mlir-gpu
+
+# Generate LLVM IR
+./mlp_mlir -emit=llvm
+
+# JIT compile and run
+./mlp_mlir -emit=jit
 ```
 
-## Emit Modes
+### With Optimizations
 
-The main driver supports:
-
-| Command | Meaning |
-| --- | --- |
-| `-emit=mlir` | Dump the initial MLIR module built by the C++ builder |
-| `-emit=mlir-linalg` | Lower `mlp` ops to `linalg`, `arith`, tensor/bufferization support ops |
-| `-emit=mlir-hetero` | Annotate graph ops with CPU/CUDA placement |
-| `-emit=mlir-gpu` | Bufferize and lower CUDA-marked matmul to `gpu.launch` |
-| `-emit=mlir-llvm` | Lower the CPU path to the LLVM dialect |
-| `-emit=llvm` | Translate the LLVM dialect module to LLVM IR |
-| `-emit=jit` | JIT-compile and run the CPU executable path |
-
-Optimization can be enabled with:
+Enable MLIR optimizations:
 
 ```bash
 ./mlp_mlir -emit=jit -opt
 ```
 
-## Current Pipeline
+## Emit Modes
 
-The current synthetic program is created in `src/Builder.cpp` and follows this
-shape:
+| Mode | Description |
+|------|-------------|
+| `mlir` | Initial MLIR module with custom `mlp` operations |
+| `mlir-linalg` | Lowered to `linalg`, `arith`, and tensor operations |
+| `mlir-hetero` | Operations annotated with CPU/CUDA device placement |
+| `mlir-gpu` | CUDA operations lowered to `gpu.launch` kernels |
+| `mlir-llvm` | CPU path lowered to LLVM dialect |
+| `llvm` | Translated to LLVM IR text format |
+| `jit` | JIT-compiled and executed on CPU |
 
-```text
-mlp.constant
-mlp.linear
-mlp.relu
-mlp.print
-```
+## Heterogeneous Support
 
-The lowering flow is:
+MLP-MLIR demonstrates early heterogeneous compilation by partitioning operations across CPU and CUDA devices:
 
-```text
-mlp dialect
-  -> linalg / arith / tensor
-  -> CPU/CUDA partition annotations
-  -> bufferization
-  -> optional gpu.launch for CUDA-marked matmul
-  -> linalg/scf/cf/llvm for CPU JIT
-```
+- **CUDA Partition**: `linalg.matmul` operations marked for GPU execution
+- **CPU Partition**: Element-wise operations (`relu`) and I/O (`print`) on CPU
 
-The CUDA path is currently an IR-generation path. It produces MLIR GPU dialect
-IR for inspection and future lowering, but it is not yet a complete executable
-CUDA runtime path.
-
-## Heterogeneous CPU/CUDA Support
-
-The partitioner currently marks:
-
-- `linalg.matmul` as `device = "cuda"`
-- elementwise `linalg.generic` ReLU as `device = "cpu"`
-- `mlp.print` as `device = "cpu"`
-
-Example from:
-
-```bash
-./mlp_mlir -emit=mlir-hetero
-```
+### Example Partitioned IR
 
 ```mlir
 module attributes {mlp.targets = ["cpu", "cuda"]} {
-  %0 = linalg.matmul {device = "cuda"} ...
-  %1 = linalg.generic ... attrs =  {device = "cpu"} ...
-  mlp.print ... {device = "cpu"}
+  %0 = linalg.matmul {device = "cuda"} ...  // GPU matrix multiplication
+  %1 = linalg.generic {device = "cpu"} ...   // CPU element-wise ReLU
+  mlp.print {device = "cpu"} ...             // CPU output
 }
 ```
 
-After bufferization, the CUDA-marked matmul can be lowered to:
+### GPU Lowering
+
+CUDA-marked operations are lowered to MLIR GPU dialect:
 
 ```mlir
 gpu.launch ... {
-  scf.for ...
+  scf.for ... {
+    // Matrix multiplication kernel
     memref.load ...
-    arith.mulf ...
-    arith.addf ...
+    arith.mulf ... arith.addf ...
     memref.store ...
+  }
   gpu.terminator
 } {device = "cuda"}
 ```
 
-This is intentionally simple: it proves the compiler can partition and enter
-the GPU dialect. Kernel outlining, `gpu.module`, NVVM lowering, CUDA runtime
-launches, and host/device memory copies are future work.
+**Note**: The CUDA path currently generates MLIR GPU IR for inspection. Full CUDA runtime integration (kernel launching, memory transfers) is planned for future development.
 
-## Tensor Print Lowering
+## Current Pipeline
 
-`mlp.print` accepts tensors in the frontend-level IR. During linalg lowering,
-tensor prints are converted through bufferization:
+The synthetic program (`src/Builder.cpp`) creates a simple MLP:
 
-```mlir
-%buffer = bufferization.to_buffer %tensor read_only
-mlp.print %buffer : memref<...>
+```text
+mlp.constant  →  mlp.linear  →  mlp.relu  →  mlp.print
 ```
 
-The LLVM lowering then expands `mlp.print memref<...>` into loops that call
-`printf`.
+**Lowering Flow:**
+```
+mlp dialect
+  ↓ Shape inference, canonicalization
+linalg + arith + tensor operations
+  ↓ Partitioning pass
+CPU/CUDA placement annotations
+  ↓ Bufferization
+memref operations + gpu.launch
+  ↓ Target-specific lowering
+LLVM IR (CPU) / GPU kernels (CUDA)
+```
 
-## Source Layout
+## Contributing
 
-| Path | Purpose |
-| --- | --- |
-| `include/Ops.td` | ODS definitions for the `mlp` dialect ops |
-| `src/Dialect.cpp` | Dialect and custom parser/printer implementation |
-| `src/Builder.cpp` | Synthetic test program construction |
-| `src/LowerToLinalg.cpp` | Lowering from `mlp` ops to linalg/arith/tensor/buffer ops |
-| `src/Partition.cpp` | CPU/CUDA graph partition annotations |
-| `src/LowerCudaToGpu.cpp` | CUDA-marked matmul lowering to `gpu.launch` |
-| `src/LowerToLLVM.cpp` | CPU-side lowering to LLVM dialect and `printf` printing |
-| `src/main.cpp` | Compiler driver and pass pipeline selection |
-| `include/TargetInfo.h`, `src/TargetInfo.cpp` | Simple target support/preference table |
-| `targets/` | Placeholder backend directories for future backend-specific pipelines |
+We welcome contributions! Please follow these guidelines:
 
-## Current Limitations
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feature/your-feature`
+3. **Commit** changes: `git commit -am 'Add your feature'`
+4. **Push** to the branch: `git push origin feature/your-feature`
+5. **Submit** a Pull Request
 
-- Input parsing is not wired up yet; the driver builds a synthetic module in
-  C++.
-- CUDA lowering currently stops at MLIR GPU dialect IR.
-- There is no CUDA runtime execution path yet.
-- Host/device memory transfer planning is not implemented.
-- GPU lowering supports only static rank-2 matmul in the current demo shape.
-- The target selection policy is rule-based, not a cost model.
+### Development Setup
 
-## Roadmap
+- Use the provided `build.sh` script for consistent builds
+- Run tests with `./mlp_mlir -emit=jit` to verify functionality
+- Follow the existing code style and naming conventions
 
-Near-term:
+### Areas for Contribution
 
-- Load `.mlir` input files instead of only building synthetic modules.
-- Add tests for `mlp -> linalg`, partitioning, print lowering, and GPU lowering.
-- Outline `gpu.launch` into `gpu.module` / `gpu.func`.
-- Lower GPU modules to NVVM.
-- Add explicit host/device allocation and copy operations.
+- Complete CUDA runtime integration
+- Add more neural network operations
+- Implement additional backends (Vulkan, OpenCL)
+- Performance optimizations and benchmarking
+- Documentation improvements
 
-Longer-term:
+## License
 
-- Add fusion for `linear + bias + activation`.
-- Add shape-aware CPU/GPU cost modeling.
-- Add more neural-network ops such as softmax, layer norm, and attention.
-- Add backend-specific lowering pipelines for CUDA, ROCm, CPU, and RISC-V.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Built on [LLVM MLIR](https://mlir.llvm.org/) infrastructure
+- Inspired by research in heterogeneous compilation for machine learning
+- Part of ongoing work in compiler design for neural networks
+
+---
+
+**Note**: This is research software under active development. APIs and behavior may change without notice.

@@ -115,6 +115,8 @@ void MLPDialect::initialize() {
       >();
   // addInterfaces<MlpInlinerInterface>();
   // addTypes<StructType>();
+
+
 }
 
 // void MlpDialect::initialize() {
