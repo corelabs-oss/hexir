@@ -25,8 +25,11 @@ set(LLVM_LINK_COMPONENTS Core Support nativecodegen OrcJIT)
 include_directories(include)
 
 include_directories(
-  ${LLVM_INCLUDE_DIRS} ${MLIR_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${LLVM_INCLUDE_DIRS} ${MLIR_INCLUDE_DIRS} 
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/Dialects
   ${CMAKE_CURRENT_BINARY_DIR}/include # For TableGen-generated .inc files
+  ${CMAKE_CURRENT_BINARY_DIR}/include/Dialects # For TableGen-generated .inc files
   ${CMAKE_CURRENT_BINARY_DIR})
 
 add_definitions(${LLVM_DEFINITIONS})
@@ -42,6 +45,7 @@ add_public_tablegen_target(CombineIncGen)
 
 file(
   GLOB CCMLIR_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+                                  "${CMAKE_CURRENT_SOURCE_DIR}/src/Dialects/*.cpp"
   # GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/cpu/*.cpp"
   # GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/gpu/*.cpp"
   # GLOB CCMLIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/targets/metal/*.cpp"
@@ -52,7 +56,8 @@ add_executable(mlp_mlir ${CCMLIR_SRC})
 
 
 # add_dependencies(mlp_mlir Ops ShapeInfer CombineIncGen)
-add_dependencies(mlp_mlir OpsIncGen ShapeInferenceInterfaceIncGen CombineIncGen)
+add_dependencies(mlp_mlir OpsIncGen LSDialectsIncGen
+                 ShapeInferenceInterfaceIncGen CombineIncGen)
 
 llvm_update_compile_flags(mlp_mlir)
 

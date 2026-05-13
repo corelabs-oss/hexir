@@ -2,6 +2,7 @@
 #include "Builder.h"
 #include "Dialect.h"
 #include "Jit.h"
+#include "LSDialects.h"
 #include "Passes.h"
 
 #include "mlir/IR/BuiltinOps.h"
@@ -194,6 +195,7 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
       pm.addPass(mlir::mlp::createPartitionPass());
 
     if (emitAction == Action::DumpMLIRHetero) {
+      pm.addPass(mlir::mlp::createMaterializeLSTargetsPass());
       if (mlir::failed(pm.run(*module)))
         return 4;
       return 0;
@@ -389,7 +391,8 @@ int main(int argc, char **argv) {
                   mlir::scf::SCFDialect, mlir::memref::MemRefDialect,
                   mlir::affine::AffineDialect, mlir::math::MathDialect,
                   mlir::LLVM::LLVMDialect, mlir::cf::ControlFlowDialect,
-                  mlir::bufferization::BufferizationDialect>();
+                  mlir::bufferization::BufferizationDialect,
+                  mlir::ls_cpu::LSCPUDialect, mlir::ls_gpu::LSGPUDialect>();
 
   MLIRContext context(registry);
 
@@ -408,6 +411,8 @@ int main(int argc, char **argv) {
 
   // Load our Dialect in this MLIR Context.
   context.getOrLoadDialect<mlir::mlp::MLPDialect>();
+  context.getOrLoadDialect<mlir::ls_cpu::LSCPUDialect>();
+  context.getOrLoadDialect<mlir::ls_gpu::LSGPUDialect>();
   context.loadAllAvailableDialects();
 
   mlir::OwningOpRef<mlir::ModuleOp> module;

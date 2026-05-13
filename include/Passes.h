@@ -35,6 +35,9 @@ std::unique_ptr<mlir::Pass> createLowerToLinalgPass();
 // Annotate supported ops with their selected CPU/CUDA device.
 std::unique_ptr<mlir::Pass> createPartitionPass();
 
+// Materialize partition annotations as ls_cpu/ls_gpu model operations.
+std::unique_ptr<mlir::Pass> createMaterializeLSTargetsPass();
+
 // Lower CUDA-partitioned linalg ops to the MLIR GPU dialect.
 std::unique_ptr<mlir::Pass> createCudaGpuLoweringPass();
 
