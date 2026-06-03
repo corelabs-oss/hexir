@@ -71,10 +71,21 @@ There is no real frontend: `loadMLIR()` ignores the input file and calls `builde
 
 ### Partitioning system
 
-- `src/TargetInfo.cpp` — `TargetSupport` singleton: registry mapping op names → supported targets + preferred target. Register new op/target support here.
-- `src/Partition.cpp` — `PartitionPass` walks the module, asks `TargetSupport` for each op's preferred device, sets the `device` string attribute (falls back to "cpu" if unsupported), and tags the module with `hexir.targets = ["cpu", "cuda"]`.
+Placement is fully generic and keyed on the **frontend hexir op names** (`hexir.linear`, `hexir.relu`, …): `PartitionPass` annotates hexir ops *before* `LowerToLinalg`, which propagates the `device` attr onto the linalg ops it creates. Override at runtime (`gpu` is an alias for `cuda`):
+
+```bash
+./hexir -emit=jit -placement=hexir.linear=cpu                      # all-CPU (runs anywhere)
+./hexir -emit=mlir-gpu -placement=hexir.relu=gpu                   # relu on GPU too
+./hexir -emit=mlir-hetero -placement=hexir.linear=cpu,hexir.relu=gpu  # swapped
+```
+
+- `src/TargetInfo.cpp` — `TargetSupport` singleton: registry mapping op names → supported targets + preferred target (defaults: `hexir.linear`→cuda, rest→cpu). The `hexir.*` entries are the primary knobs; `linalg.*` entries are fallbacks for ops with no propagated attr. `-placement` overrides via `setPreferredTarget`.
+- `src/Partition.cpp` — `PartitionPass` runs twice (before lowering for hexir ops, after as linalg fallback); it skips ops that already carry a `device` attr, and tags the module with `hexir.targets = ["cpu", "cuda"]`.
+- `src/LowerCudaToGpu.cpp` — lowers **any** cuda-annotated linalg op: matmul via a dedicated kernel; everything elementwise (all-parallel + identity maps, e.g. relu/add) via a generic body-cloning kernel that wraps `gpu.launch`.
 - `src/MaterializeLSTargets.cpp` — converts device-annotated linalg ops to ops in the lightweight `ls_cpu`/`ls_gpu` demo dialects.
-- `src/LowerCudaToGpu.cpp` — lowers cuda-annotated ops to the MLIR GPU dialect. GPU IR is for inspection only; only the CPU path actually executes (JIT).
+- `src/LowerLSToLinalg.cpp` — converts ls_cpu/ls_gpu ops back to linalg with device attrs preserved, so downstream passes work unchanged.
+
+GPU execution requires the CUDA toolkit (ptxas) + `libmlir_cuda_runtime.so` (MLIR built with `-DMLIR_ENABLE_CUDA_RUNNER=ON`); kernels target sm_86 (A6000), set in main.cpp. Without CUDA, stages ≥ `mlir-llvm` fail at `gpu-module-to-binary` — use `-placement=linalg.matmul=cpu` to run the JIT locally.
 
 ### TableGen
 

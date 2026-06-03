@@ -142,6 +142,11 @@ namespace
                                    /*inputs=*/ValueRange{lhs, rhs},
                                    /*outputs=*/ValueRange{init});
 
+      // Propagate placement decided on the hexir op (PartitionPass runs
+      // before this lowering) down to the linalg op.
+      if (auto device = op->getAttrOfType<StringAttr>("device"))
+        linear->setAttr("device", device);
+
       rewriter.replaceOp(op, linear.getResult(0));
       return success();
     }
@@ -174,6 +179,9 @@ namespace
                                        /*resultTensorTypes=*/TypeRange{resultTy},
                                        /*inputs=*/ValueRange{lhs, rhs},
                                        /*outputs=*/ValueRange{init});
+
+      if (auto device = op->getAttrOfType<StringAttr>("device"))
+        add->setAttr("device", device);
 
       rewriter.replaceOp(op, add.getResult(0));
       return success();
@@ -252,6 +260,9 @@ namespace
 
       //       builder.create<linalg::YieldOp>(loc, relu);
       //     });
+
+      if (auto device = op->getAttrOfType<StringAttr>("device"))
+        genericOp->setAttr("device", device);
 
       rewriter.replaceOp(op, genericOp.getResult(0));
       return success();

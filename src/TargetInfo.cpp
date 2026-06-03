@@ -11,6 +11,11 @@ TargetSupport &TargetSupport::getInstance() {
   return instance;
 }
 
+// "gpu" is accepted everywhere as an alias for "cuda".
+static StringRef normalizeTarget(StringRef target) {
+  return target == "gpu" ? StringRef("cuda") : target;
+}
+
 TargetSupport::TargetSupport() {
   registerSupport("hexir.linear", {"cpu", "cuda"});
   registerSupport("hexir.add", {"cpu", "cuda"});
@@ -20,19 +25,30 @@ TargetSupport::TargetSupport() {
   registerSupport("linalg.add", {"cpu", "cuda"});
   registerSupport("linalg.generic", {"cpu", "cuda"});
 
-  opPreferred_["hexir.linear"] = "cpu";
-  opPreferred_["linalg.matmul"] = "cpu";
+  // ── Primary placement knobs ────────────────────────────────────────────
+  // Placement is decided on the frontend hexir ops (PartitionPass runs
+  // before LowerToLinalg) and the device attr is propagated down through
+  // every later lowering. Flip these — or use the -placement flag — to
+  // reroute any op:
+  //   hexir.linear = "cpu" | "cuda"   (the matmul)
+  //   hexir.relu   = "cpu" | "cuda"
+  opPreferred_["hexir.linear"] = "cpu"; // compute-intensive: GPU by default
   opPreferred_["hexir.add"] = "cpu";
   opPreferred_["hexir.relu"] = "cpu";
+
+  // Fallbacks for linalg ops that did not originate from an annotated hexir
+  // op (a second PartitionPass run fills in anything still unannotated).
+  opPreferred_["linalg.matmul"] = "cpu";
   opPreferred_["linalg.add"] = "cpu";
   opPreferred_["linalg.generic"] = "cpu";
 }
 
 bool TargetSupport::isSupported(Operation *op, StringRef target) const {
+  StringRef t = normalizeTarget(target);
   auto it = opSupports_.find(op->getName().getStringRef());
   if (it == opSupports_.end())
-    return target == "cpu";
-  return it->second.contains(target);
+    return t == "cpu";
+  return it->second.contains(t);
 }
 
 StringRef TargetSupport::getPreferredTarget(Operation *op) const {
@@ -46,7 +62,16 @@ void TargetSupport::registerSupport(StringRef opName,
                                     llvm::ArrayRef<StringRef> targets) {
   llvm::StringSet<> &opSet = opSupports_[opName];
   for (StringRef target : targets)
-    opSet.insert(target);
+    opSet.insert(normalizeTarget(target));
+}
+
+bool TargetSupport::setPreferredTarget(StringRef opName, StringRef target) {
+  StringRef t = normalizeTarget(target);
+  auto it = opSupports_.find(opName);
+  if (it == opSupports_.end() || !it->second.contains(t))
+    return false;
+  opPreferred_[opName] = t.str();
+  return true;
 }
 
 } // namespace hexir

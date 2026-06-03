@@ -41,7 +41,13 @@ struct PartitionPass
                                          StringAttr::get(ctx, "cuda")}));
 
     module->walk([ctx, &assignDevice](Operation *op) {
-      // Handle Hexir dialect ops (keep existing)
+      // Respect placement decided earlier in the pipeline: the pass runs
+      // once BEFORE LowerToLinalg (annotating hexir ops, e.g. hexir.linear)
+      // and once after as a fallback. Propagated attrs win.
+      if (op->hasAttr("device"))
+        return;
+
+      // Hexir dialect ops (first run: hexir.linear / hexir.relu / ...).
       if (isa<HexirDialect>(op->getDialect())) {
         StringRef device = assignDevice(op);
         if (!device.empty()) {
@@ -50,14 +56,9 @@ struct PartitionPass
         return;
       }
 
-      // Handle linalg ops - explicit matching
-      if (auto matmul = dyn_cast<linalg::MatmulOp>(op)) {
-        op->setAttr("device", StringAttr::get(ctx, "cuda"));
-//        op->setAttr("device", StringAttr::get(ctx, "cpu"));
-        return;
-      }
-
-      if (isa<linalg::AddOp, linalg::GenericOp>(op)) {
+      // ALL linalg ops, generically (second run): fallback for ops that did
+      // not inherit a device attr from a hexir op during lowering.
+      if (isa<linalg::LinalgDialect>(op->getDialect())) {
         op->setAttr("device", StringAttr::get(ctx, assignDevice(op)));
         return;
       }

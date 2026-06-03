@@ -4,6 +4,7 @@
 #include "Jit.h"
 #include "LSDialects.h"
 #include "Passes.h"
+#include "TargetInfo.h"
 
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/DialectRegistry.h"
@@ -78,6 +79,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <cassert>
@@ -146,6 +148,35 @@ static cl::opt<enum Action> emitAction(
 
 static cl::opt<bool> enableOpt("opt", cl::desc("Enable optimizations"));
 
+// Override op placement at runtime without recompiling, e.g.:
+//   ./hexir -emit=jit -placement=linalg.matmul=cpu
+//   ./hexir -emit=mlir-hetero -placement=linalg.matmul=cpu,linalg.generic=cuda
+static cl::list<std::string> placementOverrides(
+    "placement", cl::CommaSeparated, cl::ZeroOrMore,
+    cl::desc("Override op placement: <op-name>=<cpu|cuda>[,...]"),
+    cl::value_desc("op=device"));
+
+// Apply -placement overrides to the TargetSupport registry. Returns failure
+// on malformed entries or unsupported op/device combinations.
+static llvm::LogicalResult applyPlacementOverrides() {
+  auto &targets = mlir::hexir::TargetSupport::getInstance();
+  for (const std::string &entry : placementOverrides) {
+    auto [opName, device] = llvm::StringRef(entry).split('=');
+    if (opName.empty() ||
+        (device != "cpu" && device != "cuda" && device != "gpu")) {
+      llvm::errs() << "error: invalid -placement entry '" << entry
+                   << "' (expected <op-name>=<cpu|cuda|gpu>)\n";
+      return llvm::failure();
+    }
+    if (!targets.setPreferredTarget(opName, device)) {
+      llvm::errs() << "error: op '" << opName << "' does not support target '"
+                   << device << "'\n";
+      return llvm::failure();
+    }
+  }
+  return llvm::success();
+}
+
 static int loadMLIR(mlir::MLIRContext &context,
                     mlir::OwningOpRef<mlir::ModuleOp> &module) {
 
@@ -192,6 +223,12 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   }
 
   if (isLoweringToLinalg) {
+    // Placement is decided on the frontend hexir ops (hexir.linear,
+    // hexir.relu, ...) BEFORE lowering; LowerToLinalg propagates the device
+    // attr onto the linalg ops it creates.
+    if (isPartitioningForHetero)
+      pm.addPass(mlir::hexir::createPartitionPass());
+
     pm.addPass(mlir::hexir::createLowerToLinalgPass());
 
     if (emitAction == Action::DumpMLIRLinalg) {
@@ -201,6 +238,8 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
     }
 
     if (isPartitioningForHetero) {
+      // Second run: fallback for linalg ops that didn't inherit a device
+      // attr (PartitionPass skips ops already annotated).
       pm.addPass(mlir::hexir::createPartitionPass());
       // Materialize device annotations into ls_cpu/ls_gpu model ops for ALL
       // stages beyond linalg (not just the hetero inspection stage).
@@ -245,6 +284,10 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
     //   - CUDA toolkit (nvcc, ptxas):  sudo apt install nvidia-cuda-toolkit
     //   - libmlir_cuda_runtime.so:  build MLIR with -DMLIR_ENABLE_CUDA_RUNNER=ON
     //   - NVIDIA A6000 (sm_86) or adjust chip= below for other GPUs
+    // Linalg → loops for all CPU ops BEFORE GPU lowering so that gpu-to-llvm
+    // never sees live linalg ops (which it can't handle).
+    pm.addPass(mlir::createConvertLinalgToLoopsPass());
+
     if (isLoweringCudaToGpu) {
       // 1. Extract inline gpu.launch body into a separate gpu.module + gpu.launch_func
       pm.addPass(mlir::createGpuKernelOutliningPass());
@@ -268,9 +311,6 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
       // 5. Lower host-side gpu.launch_func to CUDA runtime calls
       pm.addPass(mlir::createGpuToLLVMConversionPass());
     }
-
-    // Linalg → loops (CPU relu and any remaining CPU ops)
-    pm.addPass(mlir::createConvertLinalgToLoopsPass());
 
     // SCF → CFG
     pm.addPass(mlir::createSCFToControlFlowPass());
@@ -320,9 +360,9 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   if (isLoweringToLLVM) {
     // Finish lowering the hexir IR to the LLVM dialect.
     pm.addPass(mlir::hexir::createLowerToLLVMPass());
-    // This is necessary to have line tables emitted and basic
-    // debugger working. In the future we will add proper debug information
-    // emission directly from our frontend.
+    // Clean up unrealized casts left by partial conversions (linalg→loops,
+    // bufferization, gpu-to-llvm) after the final LLVM lowering pass.
+    pm.addPass(mlir::createReconcileUnrealizedCastsPass());
     pm.addPass(mlir::LLVM::createDIScopeForLLVMFuncOpPass());
   }
 
@@ -422,10 +462,13 @@ static int runJit(mlir::ModuleOp module) {
   // mgpuLaunchKernel, etc.) that the lowered IR calls. It is produced by
   // building MLIR on the server with:
   //   cmake ... -DMLIR_ENABLE_CUDA_RUNNER=ON
-  engineOptions.sharedLibPaths = {
-      "/usr/local/lib/libmlir_c_runner_utils.so",
-      "/usr/local/lib/libmlir_cuda_runtime.so",
-  };
+  // Always load runner utils; only load CUDA runtime if it exists on this machine.
+  llvm::SmallVector<llvm::StringRef> sharedLibs = {
+      "/usr/local/lib/libmlir_c_runner_utils.so"};
+  constexpr const char *cudaRuntime = "/usr/local/lib/libmlir_cuda_runtime.so";
+  if (llvm::sys::fs::exists(cudaRuntime))
+    sharedLibs.push_back(cudaRuntime);
+  engineOptions.sharedLibPaths = sharedLibs;
   auto maybeEngine = mlir::ExecutionEngine::create(module, engineOptions);
   assert(maybeEngine && "failed to construct an execution engine");
   auto &engine = maybeEngine.get();
@@ -447,6 +490,10 @@ int main(int argc, char **argv) {
   mlir::registerPassManagerCLOptions();
 
   cl::ParseCommandLineOptions(argc, argv, "hexir compiler\n");
+
+  // Apply -placement overrides before any pass runs.
+  if (llvm::failed(applyPlacementOverrides()))
+    return 1;
 
   if (emitAction == Action::DumpAST)
     return dumpAST();

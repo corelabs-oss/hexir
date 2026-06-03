@@ -131,7 +131,7 @@ struct LSCpuReluToLinalg : public OpConversionPattern<ls_cpu::ReluOp> {
 };
 
 //===----------------------------------------------------------------------===//
-// ls_gpu.relu → linalg.generic {device = "cpu"}  (relu always executes on CPU)
+// ls_gpu.relu → linalg.generic {device = "cuda"}
 //===----------------------------------------------------------------------===//
 struct LSGpuReluToLinalg : public OpConversionPattern<ls_gpu::ReluOp> {
   using OpConversionPattern::OpConversionPattern;
@@ -143,7 +143,7 @@ struct LSGpuReluToLinalg : public OpConversionPattern<ls_gpu::ReluOp> {
       return rewriter.notifyMatchFailure(op, "expected ranked tensor result");
 
     rewriter.replaceOp(op, buildRelu(rewriter, op.getLoc(),
-                                     adaptor.getInput(), resultTy, "cpu"));
+                                     adaptor.getInput(), resultTy, "cuda"));
     return success();
   }
 };

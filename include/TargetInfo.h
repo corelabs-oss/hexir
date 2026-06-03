@@ -22,6 +22,11 @@ public:
   /// Register support: opName -> targets.
   void registerSupport(StringRef opName, llvm::ArrayRef<StringRef> targets);
 
+  /// Override the preferred target for an op at runtime (e.g. from the
+  /// -placement command-line flag). Returns false if the op does not
+  /// support the requested target.
+  bool setPreferredTarget(StringRef opName, StringRef target);
+
 private:
   TargetSupport();
 
