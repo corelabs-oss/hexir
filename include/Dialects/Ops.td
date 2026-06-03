@@ -1,4 +1,4 @@
-//===- Ops.td - MLP dialect operation definitions ----------*- tablegen -*-===//
+//===- Ops.td - Hexir dialect operation definitions ----------*- tablegen -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Defines the operations of the MLP dialect.
+// Defines the operations of the Hexir dialect.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLP_OPS
-#define MLP_OPS
+#ifndef HEXIR_OPS
+#define HEXIR_OPS
 
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -20,14 +20,14 @@ include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "ShapeInferenceInterface.td"
 
-// Provide a definition of the 'mlp' dialect in the ODS framework so that we
+// Provide a definition of the 'hexir' dialect in the ODS framework so that we
 // can define our operations.
-def MLP_Dialect : Dialect {
-  let name = "mlp";
-  let cppNamespace = "::mlir::mlp";
+def Hexir_Dialect : Dialect {
+  let name = "hexir";
+  let cppNamespace = "::mlir::hexir";
 
   // We set this bit to generate a declaration of the `materializeConstant`
-  // method so that we can materialize constants for our mlp operations.
+  // method so that we can materialize constants for our hexir operations.
   //let hasConstantMaterializer = 1; Original is 1
   let hasConstantMaterializer = 0;
 
@@ -37,37 +37,37 @@ def MLP_Dialect : Dialect {
 
 }
 
-// Base class for mlp dialect operations. This operation inherits from the base
+// Base class for hexir dialect operations. This operation inherits from the base
 // `Op` class in OpBase.td, and provides:
 //   * The parent dialect of the operation.
 //   * The mnemonic for the operation, or the name without the dialect prefix.
 //   * A list of traits for the operation.
-class MLP_OP<string mnemonic, list<Trait> traits = []> :
-    Op<MLP_Dialect, mnemonic, traits>;
+class Hexir_Op<string mnemonic, list<Trait> traits = []> :
+    Op<Hexir_Dialect, mnemonic, traits>;
 
-// Provide a definition for the MLP StructType for use in ODS. This allows for
+// Provide a definition for the Hexir StructType for use in ODS. This allows for
 // using StructType in a similar way to Tensor or MemRef. We use `DialectType`
-// to demarcate the StructType as belonging to the MLP dialect.
-def MLP_StructType :
-    DialectType<MLP_Dialect, CPred<"::llvm::isa<StructType>($_self)">,
-                "MLP struct type">;
+// to demarcate the StructType as belonging to the Hexir dialect.
+def Hexir_StructType :
+    DialectType<Hexir_Dialect, CPred<"::llvm::isa<StructType>($_self)">,
+                "Hexir struct type">;
 
-// Provide a definition of the types that are used within the MLP dialect.
-def MLP_Type : AnyTypeOf<[F64Tensor, MLP_StructType]>;
+// Provide a definition of the types that are used within the Hexir dialect.
+def Hexir_Type : AnyTypeOf<[F64Tensor, Hexir_StructType]>;
 
 //===----------------------------------------------------------------------===//
-// MLP Operations
+// Hexir Operations
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
-// We define a MLP operation by inheriting from our base 'MLP_OP' class above.
+// We define a MLP operation by inheriting from our base 'Hexir_Op' class above.
 // Here we provide the mnemonic and a list of traits for the operation. The
 // constant operation is marked as 'Pure' as it is a pure operation
 // and may be removed if dead.
-def ConstantOp : MLP_OP<"constant",
+def ConstantOp : Hexir_Op<"constant",
     [Pure]> {//      ConstantLike,Pure 
   // Provide a summary and description for this operation. This can be used to
   // auto-generate documentation of the operations within our dialect.
@@ -77,7 +77,7 @@ def ConstantOp : MLP_OP<"constant",
     to the operation as an attribute. For example:
 
     ```mlir
-      %0 = MLP.constant dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]>
+      %0 = hexir.constant dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]>
                         : tensor<2x3xf64>
     ```
   }];
@@ -115,7 +115,7 @@ def ConstantOp : MLP_OP<"constant",
 // AddOp
 //===----------------------------------------------------------------------===//
 
-def AddOp : MLP_OP<"add",
+def AddOp : Hexir_Op<"add",
     [Pure]> {
   let summary = "element-wise addition operation";
   let description = [{
@@ -138,7 +138,7 @@ def AddOp : MLP_OP<"add",
 // MulOp
 //===----------------------------------------------------------------------===//
 
-// def MulOp : MLP_OP<"mul",
+// def MulOp : Hexir_Op<"mul",
 //     [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
 //   let summary = "element-wise multiplication operation";
 //   let description = [{
@@ -162,7 +162,7 @@ def AddOp : MLP_OP<"add",
 // ReluOp
 //===----------------------------------------------------------------------===//
 
-def ReluOp : MLP_OP<"relu",
+def ReluOp : Hexir_Op<"relu",
     [Pure]> {
 
   let summary = "element-wise ReLU operation";
@@ -189,7 +189,7 @@ def ReluOp : MLP_OP<"relu",
 // ===----------------------------------------------------------------------===//
 // LeakyReLU
 // ===----------------------------------------------------------------------===//
-def LeakyReluOp : MLP_OP<"leaky_relu", [Pure]> {
+def LeakyReluOp : Hexir_Op<"leaky_relu", [Pure]> {
   let summary = "leaky rectified linear unit";
   let description = [{
     Applies max(x, alpha * x) element-wise.
@@ -205,7 +205,7 @@ def LeakyReluOp : MLP_OP<"leaky_relu", [Pure]> {
 // ===----------------------------------------------------------------------===//
 // ELU
 // ===----------------------------------------------------------------------===//
-def EluOp : MLP_OP<"elu", [Pure]> {
+def EluOp : Hexir_Op<"elu", [Pure]> {
   let summary = "exponential linear unit";
   let description = [{
     Applies x if x > 0, otherwise alpha * (exp(x) - 1).
@@ -220,7 +220,7 @@ def EluOp : MLP_OP<"elu", [Pure]> {
 // ===----------------------------------------------------------------------===//
 // Sigmoid
 // ===----------------------------------------------------------------------===//
-def SigmoidOp : MLP_OP<"sigmoid", [Pure]> {
+def SigmoidOp : Hexir_Op<"sigmoid", [Pure]> {
   let summary = "sigmoid activation";
   let description = [{
     Applies 1 / (1 + exp(-x)) element-wise.
@@ -235,7 +235,7 @@ def SigmoidOp : MLP_OP<"sigmoid", [Pure]> {
 // ===----------------------------------------------------------------------===//
 // Tanh
 // ===----------------------------------------------------------------------===//
-def TanhOp : MLP_OP<"tanh", [Pure]> {
+def TanhOp : Hexir_Op<"tanh", [Pure]> {
   let summary = "hyperbolic tangent activation";
   let description = [{
     Applies tanh(x) element-wise.
@@ -250,7 +250,7 @@ def TanhOp : MLP_OP<"tanh", [Pure]> {
 // ===----------------------------------------------------------------------===//
 // Softmax
 // ===----------------------------------------------------------------------===//
-def SoftmaxOp : MLP_OP<"softmax", [Pure]> {
+def SoftmaxOp : Hexir_Op<"softmax", [Pure]> {
   let summary = "softmax normalization operation";
   let description = [{
     Normalizes values along the last dimension so that they sum to 1.
@@ -265,7 +265,7 @@ def SoftmaxOp : MLP_OP<"softmax", [Pure]> {
 // ===----------------------------------------------------------------------===//
 // GELU
 // ===----------------------------------------------------------------------===//
-def GeluOp : MLP_OP<"gelu", [Pure]> {
+def GeluOp : Hexir_Op<"gelu", [Pure]> {
   let summary = "Gaussian Error Linear Unit";
   let description = [{
     Applies GELU(x) = x * 0.5 * (1 + erf(x / sqrt(2))).
@@ -280,7 +280,7 @@ def GeluOp : MLP_OP<"gelu", [Pure]> {
 // ===----------------------------------------------------------------------===//
 // Swish
 // ===----------------------------------------------------------------------===//
-def SwishOp : MLP_OP<"swish", [Pure]> {
+def SwishOp : Hexir_Op<"swish", [Pure]> {
   let summary = "swish activation";
   let description = [{
     Applies x * sigmoid(x) element-wise.
@@ -295,7 +295,7 @@ def SwishOp : MLP_OP<"swish", [Pure]> {
 // ===----------------------------------------------------------------------===//
 // Mish
 // ===----------------------------------------------------------------------===//
-def MishOp : MLP_OP<"mish", [Pure]> {
+def MishOp : Hexir_Op<"mish", [Pure]> {
   let summary = "mish activation";
   let description = [{
     Applies x * tanh(softplus(x)) element-wise.
@@ -311,7 +311,7 @@ def MishOp : MLP_OP<"mish", [Pure]> {
 // LinearOp
 //===----------------------------------------------------------------------===//
 
-def LinearOp : MLP_OP<"linear",
+def LinearOp : Hexir_Op<"linear",
     [Pure]> {
   let summary = "element-wise addition operation";
   let description = [{
@@ -335,7 +335,7 @@ def LinearOp : MLP_OP<"linear",
 // CastOp
 //===----------------------------------------------------------------------===//
 
-// def CastOp : MLP_OP<"cast", [
+// def CastOp : Hexir_Op<"cast", [
 //      DeclareOpInterfaceMethods<CastOpInterface>,
 //      DeclareOpInterfaceMethods<ShapeInferenceOpInterface>,
 //      Pure,
@@ -360,22 +360,22 @@ def LinearOp : MLP_OP<"linear",
 // FuncOp
 //===----------------------------------------------------------------------===//
 
-def FuncOp : MLP_OP<"func", [
+def FuncOp : Hexir_Op<"func", [
     FunctionOpInterface, IsolatedFromAbove
   ]> {
   let summary = "user defined function operation";
   let description = [{
-    The "mlp.func" operation represents a user defined function. These are
-    callable SSA-region operations that contain mlp computations.
+    The "hexir.func" operation represents a user defined function. These are
+    callable SSA-region operations that contain hexir computations.
 
     Example:
 
     ```mlir
-    mlp.func @main() {
-      %0 = mlp.constant dense<5.500000e+00> : tensor<f64>
-      %1 = mlp.reshape(%0 : tensor<f64>) to tensor<2x2xf64>
-      mlp.print %1 : tensor<2x2xf64>
-      mlp.return
+    hexir.func @main() {
+      %0 = hexir.constant dense<5.500000e+00> : tensor<f64>
+      %1 = hexir.reshape(%0 : tensor<f64>) to tensor<2x2xf64>
+      hexir.print %1 : tensor<2x2xf64>
+      hexir.return
     }
     ```
   }];
@@ -415,7 +415,7 @@ def FuncOp : MLP_OP<"func", [
 // PrintOp
 //===----------------------------------------------------------------------===//
 
-def PrintOp : MLP_OP<"print"> {
+def PrintOp : Hexir_Op<"print"> {
   let summary = "print operation";
   let description = [{
     The "print" builtin operation prints a given input tensor, and produces
@@ -433,14 +433,14 @@ def PrintOp : MLP_OP<"print"> {
 // ReshapeOp
 //===----------------------------------------------------------------------===//
 
-// def ReshapeOp : MLP_OP<"reshape", [Pure]> {
+// def ReshapeOp : Hexir_Op<"reshape", [Pure]> {
 //   let summary = "tensor reshape operation";
 //   let description = [{
 //     Reshape operation is transforming its input tensor into a new tensor with
 //     the same number of elements but different shapes. For example:
 
 //     ```mlir
-//        %0 = mlp.reshape (%arg1 : tensor<10xf64>) to tensor<5x2xf64>
+//        %0 = hexir.reshape (%arg1 : tensor<10xf64>) to tensor<5x2xf64>
 //     ```
 //   }];
 
@@ -462,7 +462,7 @@ def PrintOp : MLP_OP<"print"> {
 // // TransposeOp
 // //===----------------------------------------------------------------------===//
 
-// def TransposeOp : MLP_OP<"transpose",
+// def TransposeOp : Hexir_Op<"transpose",
 //     [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
 //   let summary = "transpose operation";
 
@@ -485,4 +485,4 @@ def PrintOp : MLP_OP<"print"> {
 //   let hasVerifier = 1;
 // }
 
-#endif // MLP_OPS
+#endif // HEXIR_OPS

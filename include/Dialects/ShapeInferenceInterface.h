@@ -11,18 +11,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_TUTORIAL_MLP_SHAPEINFERENCEINTERFACE_H_
-#define MLIR_TUTORIAL_MLP_SHAPEINFERENCEINTERFACE_H_
+#ifndef HEXIR_SHAPEINFERENCEINTERFACE_H_
+#define HEXIR_SHAPEINFERENCEINTERFACE_H_
 
 #include "mlir/IR/OpDefinition.h"
 
 namespace mlir {
-namespace mlp {
+namespace hexir {
 
 /// Include the auto-generated declarations.
 #include "ShapeInferenceOpInterfaces.h.inc"
 
-} // namespace mlp
+} // namespace hexir
 } // namespace mlir
 
-#endif // MLIR_TUTORIAL_MLP_SHAPEINFERENCEINTERFACE_H_
+#endif // HEXIR_SHAPEINFERENCEINTERFACE_H_

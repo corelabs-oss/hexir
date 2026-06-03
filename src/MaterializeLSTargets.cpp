@@ -83,7 +83,7 @@ struct MaterializeLSTargetsPass
     : public PassWrapper<MaterializeLSTargetsPass, OperationPass<ModuleOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MaterializeLSTargetsPass)
 
-  StringRef getArgument() const final { return "mlp-materialize-ls-targets"; }
+  StringRef getArgument() const final { return "hexir-materialize-ls-targets"; }
 
   StringRef getDescription() const final {
     return "Materialize device annotations as ls_cpu/ls_gpu model operations";
@@ -106,6 +106,6 @@ struct MaterializeLSTargetsPass
 
 } // namespace
 
-std::unique_ptr<Pass> mlir::mlp::createMaterializeLSTargetsPass() {
+std::unique_ptr<Pass> mlir::hexir::createMaterializeLSTargetsPass() {
   return std::make_unique<MaterializeLSTargetsPass>();
 }

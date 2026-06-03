@@ -4,7 +4,7 @@
 #include "llvm/ADT/ArrayRef.h"
 
 namespace mlir {
-namespace mlp {
+namespace hexir {
 
 TargetSupport &TargetSupport::getInstance() {
   static TargetSupport instance;
@@ -12,18 +12,18 @@ TargetSupport &TargetSupport::getInstance() {
 }
 
 TargetSupport::TargetSupport() {
-  registerSupport("mlp.linear", {"cpu", "cuda"});
-  registerSupport("mlp.add", {"cpu", "cuda"});
-  registerSupport("mlp.relu", {"cpu", "cuda"});
+  registerSupport("hexir.linear", {"cpu", "cuda"});
+  registerSupport("hexir.add", {"cpu", "cuda"});
+  registerSupport("hexir.relu", {"cpu", "cuda"});
 
   registerSupport("linalg.matmul", {"cpu", "cuda"});
   registerSupport("linalg.add", {"cpu", "cuda"});
   registerSupport("linalg.generic", {"cpu", "cuda"});
 
-  opPreferred_["mlp.linear"] = "cpu";
+  opPreferred_["hexir.linear"] = "cpu";
   opPreferred_["linalg.matmul"] = "cpu";
-  opPreferred_["mlp.add"] = "cpu";
-  opPreferred_["mlp.relu"] = "cpu";
+  opPreferred_["hexir.add"] = "cpu";
+  opPreferred_["hexir.relu"] = "cpu";
   opPreferred_["linalg.add"] = "cpu";
   opPreferred_["linalg.generic"] = "cpu";
 }
@@ -49,5 +49,5 @@ void TargetSupport::registerSupport(StringRef opName,
     opSet.insert(target);
 }
 
-} // namespace mlp
+} // namespace hexir
 } // namespace mlir

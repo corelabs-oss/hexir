@@ -81,27 +81,29 @@
 #include <system_error>
 #include <utility>
 
-using namespace mlp;
+using namespace hexir;
 using namespace builder;
 namespace cl = llvm::cl;
 
-using namespace mlp;
+using namespace hexir;
 using namespace builder;
 namespace cl = llvm::cl;
 
 static cl::opt<std::string> inputFilename(cl::Positional,
-                                          cl::desc("<input mlp file>"),
+                                          cl::desc("<input hexir file>"),
                                           cl::init("-"),
                                           cl::value_desc("filename"));
 
 namespace {
-enum InputType { MLP, MLIR };
+enum InputType { HEXIR, MLIR };
 } // namespace
-static cl::opt<enum InputType> inputType(
-    "x", cl::init(MLP), cl::desc("Decided the kind of output desired"),
-    cl::values(clEnumValN(MLP, "mlp", "load the input file as a mlp source.")),
-    cl::values(clEnumValN(MLIR, "mlir",
-                          "load the input file as an MLIR file")));
+static cl::opt<enum InputType>
+    inputType("x", cl::init(HEXIR),
+              cl::desc("Decided the kind of output desired"),
+              cl::values(clEnumValN(HEXIR, "hexir",
+                                    "load the input file as a hexir source.")),
+              cl::values(clEnumValN(MLIR, "mlir",
+                                    "load the input file as an MLIR file")));
 
 namespace {
 enum Action {
@@ -145,7 +147,7 @@ static int loadMLIR(mlir::MLIRContext &context,
   module = mlir::ModuleOp::create(mlir::UnknownLoc::get(&context));
 
   context.getOrLoadDialect<mlir::func::FuncDialect>();
-  context.getOrLoadDialect<mlir::mlp::MLPDialect>();
+  context.getOrLoadDialect<mlir::hexir::HexirDialect>();
 
   createMLPLinearFunction(context, *module);
   // createMLPAddFunction(context, *module);
@@ -175,15 +177,15 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
 
     // Now that there is only one function, we can infer the shapes of each of
     // the operations.
-    mlir::OpPassManager &optPM = pm.nest<mlir::mlp::FuncOp>();
+    mlir::OpPassManager &optPM = pm.nest<mlir::hexir::FuncOp>();
     optPM.addPass(mlir::createCanonicalizerPass());
-    optPM.addPass(mlir::mlp::createShapeInferencePass());
+    optPM.addPass(mlir::hexir::createShapeInferencePass());
     optPM.addPass(mlir::createCanonicalizerPass());
     optPM.addPass(mlir::createCSEPass());
   }
 
   if (isLoweringToLinalg) {
-    pm.addPass(mlir::mlp::createLowerToLinalgPass());
+    pm.addPass(mlir::hexir::createLowerToLinalgPass());
 
     if (emitAction == Action::DumpMLIRLinalg) {
       if (mlir::failed(pm.run(*module)))
@@ -192,10 +194,10 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
     }
 
     if (isPartitioningForHetero)
-      pm.addPass(mlir::mlp::createPartitionPass());
+      pm.addPass(mlir::hexir::createPartitionPass());
 
     if (emitAction == Action::DumpMLIRHetero) {
-      pm.addPass(mlir::mlp::createMaterializeLSTargetsPass());
+      pm.addPass(mlir::hexir::createMaterializeLSTargetsPass());
       if (mlir::failed(pm.run(*module)))
         return 4;
       return 0;
@@ -207,7 +209,7 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
         mlir::bufferization::createBufferDeallocationSimplificationPass());
 
     if (isLoweringCudaToGpu)
-      pm.addPass(mlir::mlp::createCudaGpuLoweringPass());
+      pm.addPass(mlir::hexir::createCudaGpuLoweringPass());
 
     if (emitAction == Action::DumpMLIRGPU) {
       if (mlir::failed(pm.run(*module)))
@@ -229,8 +231,8 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
 
   //   if (isLoweringToLinalg)
   //   {
-  //     // Partially lower the mlp dialect.
-  //     pm.addPass(mlir::mlp::createLowerToLinalgPass());
+  //     // Partially lower the hexir dialect.
+  //     pm.addPass(mlir::hexir::createLowerToLinalgPass());
 
   //     // Add a few cleanups post lowering.
   //     // mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
@@ -264,8 +266,8 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   //   }
 
   if (isLoweringToLLVM) {
-    // Finish lowering the mlp IR to the LLVM dialect.
-    pm.addPass(mlir::mlp::createLowerToLLVMPass());
+    // Finish lowering the hexir IR to the LLVM dialect.
+    pm.addPass(mlir::hexir::createLowerToLLVMPass());
     // This is necessary to have line tables emitted and basic
     // debugger working. In the future we will add proper debug information
     // emission directly from our frontend.
@@ -279,7 +281,7 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
 
 static int dumpAST() {
   if (inputType == InputType::MLIR) {
-    llvm::errs() << "Can't dump a mlp AST when the input is MLIR\n";
+    llvm::errs() << "Can't dump a hexir AST when the input is MLIR\n";
     return 5;
   }
 
@@ -378,7 +380,7 @@ int main(int argc, char **argv) {
   mlir::registerMLIRContextCLOptions();
   mlir::registerPassManagerCLOptions();
 
-  cl::ParseCommandLineOptions(argc, argv, "mlp compiler\n");
+  cl::ParseCommandLineOptions(argc, argv, "hexir compiler\n");
 
   if (emitAction == Action::DumpAST)
     return dumpAST();
@@ -410,7 +412,7 @@ int main(int argc, char **argv) {
       const_cast<mlir::DialectRegistry &>(context.getDialectRegistry()));
 
   // Load our Dialect in this MLIR Context.
-  context.getOrLoadDialect<mlir::mlp::MLPDialect>();
+  context.getOrLoadDialect<mlir::hexir::HexirDialect>();
   context.getOrLoadDialect<mlir::ls_cpu::LSCPUDialect>();
   context.getOrLoadDialect<mlir::ls_gpu::LSGPUDialect>();
   context.loadAllAvailableDialects();

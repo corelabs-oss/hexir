@@ -12,15 +12,15 @@
 using namespace llvm;
 
 namespace mlir {
-namespace mlp {
+namespace hexir {
 
 struct PartitionPass
     : public PassWrapper<PartitionPass, OperationPass<ModuleOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(PartitionPass)
 
-  StringRef getArgument() const final { return "mlp-partition"; }
+  StringRef getArgument() const final { return "hexir-partition"; }
   StringRef getDescription() const final {
-    return "Partition MLP and Linalg ops to CPU/GPU based on target support.";
+    return "Partition Hexir and Linalg ops to CPU/GPU based on target support.";
   }
 
   void runOnOperation() override {
@@ -35,13 +35,14 @@ struct PartitionPass
       return "cpu";
     };
 
-    module->setAttr("mlp.targets",
+    
+    module->setAttr("hexir.targets",
                     ArrayAttr::get(ctx, {StringAttr::get(ctx, "cpu"),
                                          StringAttr::get(ctx, "cuda")}));
 
     module->walk([ctx, &assignDevice](Operation *op) {
-      // Handle MLP dialect ops (keep existing)
-      if (isa<MLPDialect>(op->getDialect())) {
+      // Handle Hexir dialect ops (keep existing)
+      if (isa<HexirDialect>(op->getDialect())) {
         StringRef device = assignDevice(op);
         if (!device.empty()) {
           op->setAttr("device", StringAttr::get(ctx, device));
@@ -68,5 +69,5 @@ std::unique_ptr<Pass> createPartitionPass() {
   return std::make_unique<PartitionPass>();
 }
 
-} // namespace mlp
+} // namespace hexir
 } // namespace mlir

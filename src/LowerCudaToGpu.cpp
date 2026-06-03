@@ -19,7 +19,7 @@ struct CudaGpuLoweringPass
     : public PassWrapper<CudaGpuLoweringPass, OperationPass<ModuleOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(CudaGpuLoweringPass)
 
-  StringRef getArgument() const final { return "mlp-lower-cuda-to-gpu"; }
+  StringRef getArgument() const final { return "hexir-lower-cuda-to-gpu"; }
 
   StringRef getDescription() const final {
     return "Lower CUDA-partitioned linalg ops to the MLIR GPU dialect.";
@@ -123,6 +123,6 @@ struct CudaGpuLoweringPass
 
 } // namespace
 
-std::unique_ptr<Pass> mlir::mlp::createCudaGpuLoweringPass() {
+std::unique_ptr<Pass> mlir::hexir::createCudaGpuLoweringPass() {
   return std::make_unique<CudaGpuLoweringPass>();
 }

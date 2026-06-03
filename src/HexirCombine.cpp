@@ -17,11 +17,11 @@
 #include "llvm/Support/Casting.h"
 #include <cstddef>
 using namespace mlir;
-using namespace mlp;
+using namespace hexir;
 
 namespace {
 /// Include the patterns defined in the Declarative Rewrite framework.
-#include "MlpCombine.inc"
+#include "HexirCombine.inc"
 } // namespace
 
 // /// Fold constants.
@@ -44,7 +44,7 @@ OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) { return getValue(); }
 // /// This is an example of a c++ rewrite pattern for the TransposeOp. It
 // /// optimizes the following scenario: transpose(transpose(x)) -> x
 // struct SimplifyRedundantTranspose : public mlir::OpRewritePattern<TransposeOp> {
-//   /// We register this pattern to match every mlp.transpose in the IR.
+//   /// We register this pattern to match every hexir.transpose in the IR.
 //   /// The "benefit" is used by the framework to order the patterns and process
 //   /// them in order of profitability.
 //   SimplifyRedundantTranspose(mlir::MLIRContext *context)

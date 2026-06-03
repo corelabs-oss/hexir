@@ -6,7 +6,7 @@
 #include <string>
 
 namespace mlir {
-namespace mlp {
+namespace hexir {
 
 /// Target support info for operators.
 class TargetSupport {
@@ -29,5 +29,5 @@ private:
   llvm::StringMap<std::string> opPreferred_;
 };
 
-} // namespace mlp
+} // namespace hexir
 } // namespace mlir

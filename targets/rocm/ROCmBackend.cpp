@@ -5,7 +5,7 @@
 
 namespace mlir
 {
-    namespace mlp
+    namespace hexir
     {
         namespace hardware
         {
