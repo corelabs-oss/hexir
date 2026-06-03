@@ -59,3 +59,9 @@ if not filecheck:
 
 config.substitutions.append(("%hexir", hexir))
 config.substitutions.append(("FileCheck", filecheck))
+
+# Expose 'cuda' feature when nvcc (CUDA toolkit) is on PATH.
+# Tests that require full GPU lowering (gpu-module-to-binary, jit) are guarded
+# with REQUIRES: cuda so they are skipped on machines without the toolkit.
+if shutil.which("nvcc"):
+    config.available_features.add("cuda")

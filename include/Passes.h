@@ -41,6 +41,10 @@ std::unique_ptr<mlir::Pass> createMaterializeLSTargetsPass();
 // Lower CUDA-partitioned linalg ops to the MLIR GPU dialect.
 std::unique_ptr<mlir::Pass> createCudaGpuLoweringPass();
 
+// Lower ls_cpu/ls_gpu model ops back to Linalg (runs after materialization,
+// before bufferization, so downstream passes see standard linalg ops).
+std::unique_ptr<mlir::Pass> createLSTargetsToLinalgPass();
+
 } // namespace hexir
 } // namespace mlir
 

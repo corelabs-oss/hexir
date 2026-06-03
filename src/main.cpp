@@ -48,11 +48,17 @@
 #include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
 #include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
+#include "mlir/Conversion/GPUCommon/GPUCommonPass.h"
+#include "mlir/Conversion/GPUToNVVM/GPUToNVVMPass.h"
 #include "mlir/Conversion/IndexToLLVM/IndexToLLVM.h"
 #include "mlir/Conversion/MathToLLVM/MathToLLVM.h"
 #include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
+#include "mlir/Conversion/GPUToNVVM/GPUToNVVM.h"
+#include "mlir/Conversion/UBToLLVM/UBToLLVM.h"
+#include "mlir/Dialect/GPU/Transforms/Passes.h"
+#include "mlir/Target/LLVM/NVVM/Target.h"
 
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
 #include "mlir/ExecutionEngine/OptUtils.h"
@@ -168,7 +174,8 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   // Check to see what granularity of MLIR we are compiling to.
   bool isLoweringToLinalg = emitAction >= Action::DumpMLIRLinalg;
   bool isPartitioningForHetero = emitAction >= Action::DumpMLIRHetero;
-  bool isLoweringCudaToGpu = emitAction == Action::DumpMLIRGPU;
+  // Run GPU lowering for every stage at or beyond mlir-gpu (incl. jit/llvm).
+  bool isLoweringCudaToGpu = emitAction >= Action::DumpMLIRGPU;
   bool isLoweringToLLVM = emitAction >= Action::DumpMLIRLLVM;
 
   if (enableOpt || isLoweringToLinalg) {
@@ -193,15 +200,21 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
       return 0;
     }
 
-    if (isPartitioningForHetero)
+    if (isPartitioningForHetero) {
       pm.addPass(mlir::hexir::createPartitionPass());
+      // Materialize device annotations into ls_cpu/ls_gpu model ops for ALL
+      // stages beyond linalg (not just the hetero inspection stage).
+      pm.addPass(mlir::hexir::createMaterializeLSTargetsPass());
+    }
 
     if (emitAction == Action::DumpMLIRHetero) {
-      pm.addPass(mlir::hexir::createMaterializeLSTargetsPass());
       if (mlir::failed(pm.run(*module)))
         return 4;
       return 0;
     }
+
+    // ls_cpu/ls_gpu → linalg (device attrs preserved for CudaGpuLoweringPass)
+    pm.addPass(mlir::hexir::createLSTargetsToLinalgPass());
 
     // Tensor → MemRef
     pm.addPass(mlir::bufferization::createOneShotBufferizePass());
@@ -217,7 +230,46 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
       return 0;
     }
 
-    // Linalg → loops
+    // Complete GPU lowering for stages beyond mlir-gpu (mlir-llvm, llvm, jit).
+    //
+    // Pipeline:
+    //   gpu.launch (inline body)
+    //     → gpu-kernel-outlining → gpu.module + gpu.launch_func
+    //     → nvvm-attach-target   → attaches NVPTX/sm_86 target to gpu.module
+    //     → convert-gpu-to-nvvm  → NVVM dialect inside gpu.module
+    //     → gpu-module-to-binary → compiles NVVM → PTX → CUBIN via ptxas
+    //                              (requires CUDA toolkit on the build machine)
+    //     → gpu-to-llvm          → host: gpu.launch_func → CUDA runtime calls
+    //
+    // Requires on the build/run machine:
+    //   - CUDA toolkit (nvcc, ptxas):  sudo apt install nvidia-cuda-toolkit
+    //   - libmlir_cuda_runtime.so:  build MLIR with -DMLIR_ENABLE_CUDA_RUNNER=ON
+    //   - NVIDIA A6000 (sm_86) or adjust chip= below for other GPUs
+    if (isLoweringCudaToGpu) {
+      // 1. Extract inline gpu.launch body into a separate gpu.module + gpu.launch_func
+      pm.addPass(mlir::createGpuKernelOutliningPass());
+
+      // 2. Tag the gpu.module with NVPTX/sm_86 target metadata (A6000 = sm_86)
+      mlir::GpuNVVMAttachTargetOptions nvvmOpts;
+      nvvmOpts.chip     = "sm_86";
+      nvvmOpts.features = "+ptx80";
+      nvvmOpts.optLevel = 3;
+      pm.addPass(mlir::createGpuNVVMAttachTarget(nvvmOpts));
+
+      // 3. Lower GPU dialect ops to NVVM inside the gpu.module
+      {
+        mlir::OpPassManager &gpuPM = pm.nest<mlir::gpu::GPUModuleOp>();
+        gpuPM.addPass(mlir::createConvertGpuOpsToNVVMOps());
+      }
+
+      // 4. Compile NVVM → PTX → CUBIN and embed as gpu.binary
+      pm.addPass(mlir::createGpuModuleToBinaryPass());
+
+      // 5. Lower host-side gpu.launch_func to CUDA runtime calls
+      pm.addPass(mlir::createGpuToLLVMConversionPass());
+    }
+
+    // Linalg → loops (CPU relu and any remaining CPU ops)
     pm.addPass(mlir::createConvertLinalgToLoopsPass());
 
     // SCF → CFG
@@ -360,6 +412,20 @@ static int runJit(mlir::ModuleOp module) {
   // the module.
   mlir::ExecutionEngineOptions engineOptions;
   engineOptions.transformer = optPipeline;
+  // Load MLIR runner utilities (printf support) and CUDA runtime if available.
+  // To enable actual GPU execution:
+  //   1. Install CUDA toolkit:  sudo apt install nvidia-cuda-toolkit
+  //   2. Build MLIR with CUDA:  cmake -DMLIR_ENABLE_CUDA_RUNNER=ON ...
+  //      (produces /usr/local/lib/libmlir_cuda_runtime.so)
+  // Load MLIR runner utils and the CUDA runtime wrapper.
+  // libmlir_cuda_runtime.so provides mgpu* symbols (mgpuStreamCreate,
+  // mgpuLaunchKernel, etc.) that the lowered IR calls. It is produced by
+  // building MLIR on the server with:
+  //   cmake ... -DMLIR_ENABLE_CUDA_RUNNER=ON
+  engineOptions.sharedLibPaths = {
+      "/usr/local/lib/libmlir_c_runner_utils.so",
+      "/usr/local/lib/libmlir_cuda_runtime.so",
+  };
   auto maybeEngine = mlir::ExecutionEngine::create(module, engineOptions);
   assert(maybeEngine && "failed to construct an execution engine");
   auto &engine = maybeEngine.get();
@@ -396,10 +462,16 @@ int main(int argc, char **argv) {
                   mlir::bufferization::BufferizationDialect,
                   mlir::ls_cpu::LSCPUDialect, mlir::ls_gpu::LSGPUDialect>();
 
-  MLIRContext context(registry);
-
+  // Register dialect extensions BEFORE constructing the context so they are
+  // visible to passes that query ConvertToLLVMPatternInterface.
   mlir::func::registerAllExtensions(registry);
+  mlir::registerAllExtensions(registry);
+  mlir::ub::registerConvertUBToLLVMInterface(registry);
+  mlir::NVVM::registerNVVMTargetInterfaceExternalModels(registry);
+  mlir::NVVM::registerConvertGpuToNVVMInterface(registry);
   mlir::LLVM::registerInlinerInterface(registry);
+
+  MLIRContext context(registry);
 
   // Register bufferizable op interface external models AFTER dialects loaded
   mlir::bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(

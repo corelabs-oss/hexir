@@ -139,6 +139,9 @@ target_link_libraries(
     MLIRMemRefDialect
     MLIRSCFDialect
     
+          MLIRRegisterAllExtensions
+          MLIRUBToLLVM
+          MLIRNVVMTarget
           LLVMSupport)
 
 install(TARGETS hexir RUNTIME DESTINATION bin)
