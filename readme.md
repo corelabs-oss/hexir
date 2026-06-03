@@ -37,25 +37,25 @@ hexir.print %3 : tensor<2x2xf64>
 ## Architecture
 
 ```
-        hexir dialect            (high-level NN ops, shape inference)
-              │
-              ▼
-   linalg / arith / tensor       (structured ops on tensors)
-              │
-              ▼
-      partitioning pass          (device = "cpu" | "cuda" per op)
-        ┌─────┴─────┐
-        ▼           ▼
-   CPU partition   CUDA partition
-        │           │
-        ▼           ▼
-   bufferization   gpu.launch kernels
-        │
-        ▼
-   SCF → CF → LLVM dialect
-        │
-        ▼
-   LLVM IR → JIT execution
+                    hexir dialect            (high-level NN ops, shape inference)
+                         │
+                         ▼
+               linalg / arith / tensor       (structured ops on tensors)
+                         │
+                         ▼
+                    partitioning pass          (device = "cpu" | "cuda" per op)
+                    ┌─────┴─────┐
+                    ▼           ▼
+               CPU partition   CUDA partition
+                    │           │
+                    ▼           ▼
+               bufferization   gpu.launch kernels
+                    │
+                    ▼
+               SCF → CF → LLVM dialect
+                    │
+                    ▼
+               LLVM IR → JIT execution
 ```
 
 
