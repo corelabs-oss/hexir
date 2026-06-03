@@ -58,52 +58,15 @@ hexir.print %3 : tensor<2x2xf64>
    LLVM IR → JIT execution
 ```
 
-| Component | Location | Role |
-|---|---|---|
-| Dialect definitions | `include/Dialects/Ops.td` | TableGen ODS for the `hexir` dialect |
-| Target dialects | `include/Dialects/LSDialects.td` | `ls_cpu` / `ls_gpu` placement-model dialects |
-| Program builder | `src/Builder.cpp` | Constructs the synthetic input program |
-| Lowering passes | `src/LowerTo*.cpp` | Progressive dialect lowering |
-| Partitioning | `src/Partition.cpp`, `src/TargetInfo.cpp` | Device assignment from a target-support registry |
-| GPU lowering | `src/LowerCudaToGpu.cpp` | CUDA partitions → MLIR GPU dialect |
-| JIT runtime | `src/Jit.cpp` | In-process execution of the CPU path |
-
-## Getting Started
-
-### Prerequisites
-
-- C++17 compiler (GCC 7+, Clang 5+)
-- CMake ≥ 3.13.4
-- An LLVM/MLIR development build (MLIR core, TableGen, OrcJIT)
-
-Point `LLVM_DIR` and `MLIR_DIR` in `CMakeLists.txt` at your LLVM build:
-
-```cmake
-set(LLVM_DIR "/path/to/llvm-project/build/lib/cmake/llvm")
-set(MLIR_DIR "/path/to/llvm-project/build/lib/cmake/mlir")
-```
 
 ### Build
 
 ```bash
-git clone <repository-url> hexir && cd hexir
+git clone git@github.com:hamzaqureshi5/hexir.git && cd hexir
 mkdir -p build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 ```
-
-### Run
-
-```bash
-./hexir -emit=jit
-```
-
-```
-8.000000 17.000000
-12.000000 14.000000
-```
-
-This JIT-compiles and executes a `linear → relu → print` network on the CPU.
 
 ## Usage
 
