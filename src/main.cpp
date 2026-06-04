@@ -50,13 +50,13 @@
 #include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
 #include "mlir/Conversion/GPUCommon/GPUCommonPass.h"
+#include "mlir/Conversion/GPUToNVVM/GPUToNVVM.h"
 #include "mlir/Conversion/GPUToNVVM/GPUToNVVMPass.h"
 #include "mlir/Conversion/IndexToLLVM/IndexToLLVM.h"
 #include "mlir/Conversion/MathToLLVM/MathToLLVM.h"
 #include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
-#include "mlir/Conversion/GPUToNVVM/GPUToNVVM.h"
 #include "mlir/Conversion/UBToLLVM/UBToLLVM.h"
 #include "mlir/Dialect/GPU/Transforms/Passes.h"
 #include "mlir/Target/LLVM/NVVM/Target.h"
@@ -76,10 +76,10 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorOr.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetSelect.h"
-#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <cassert>
@@ -129,7 +129,6 @@ enum Action {
 } // namespace
 static cl::opt<enum Action> emitAction(
     "emit", cl::desc("Select the kind of output desired"),
-    cl::values(clEnumValN(DumpAST, "ast", "output the AST dump")),
     cl::values(clEnumValN(DumpMLIR, "mlir", "output the MLIR dump")),
     cl::values(clEnumValN(DumpMLIRAffine, "mlir-affine",
                           "output the MLIR dump after affine lowering")),
@@ -282,19 +281,21 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
     //
     // Requires on the build/run machine:
     //   - CUDA toolkit (nvcc, ptxas):  sudo apt install nvidia-cuda-toolkit
-    //   - libmlir_cuda_runtime.so:  build MLIR with -DMLIR_ENABLE_CUDA_RUNNER=ON
+    //   - libmlir_cuda_runtime.so:  build MLIR with
+    //   -DMLIR_ENABLE_CUDA_RUNNER=ON
     //   - NVIDIA A6000 (sm_86) or adjust chip= below for other GPUs
     // Linalg → loops for all CPU ops BEFORE GPU lowering so that gpu-to-llvm
     // never sees live linalg ops (which it can't handle).
     pm.addPass(mlir::createConvertLinalgToLoopsPass());
 
     if (isLoweringCudaToGpu) {
-      // 1. Extract inline gpu.launch body into a separate gpu.module + gpu.launch_func
+      // 1. Extract inline gpu.launch body into a separate gpu.module +
+      // gpu.launch_func
       pm.addPass(mlir::createGpuKernelOutliningPass());
 
       // 2. Tag the gpu.module with NVPTX/sm_86 target metadata (A6000 = sm_86)
       mlir::GpuNVVMAttachTargetOptions nvvmOpts;
-      nvvmOpts.chip     = "sm_86";
+      nvvmOpts.chip = "sm_86";
       nvvmOpts.features = "+ptx80";
       nvvmOpts.optLevel = 3;
       pm.addPass(mlir::createGpuNVVMAttachTarget(nvvmOpts));
@@ -462,7 +463,8 @@ static int runJit(mlir::ModuleOp module) {
   // mgpuLaunchKernel, etc.) that the lowered IR calls. It is produced by
   // building MLIR on the server with:
   //   cmake ... -DMLIR_ENABLE_CUDA_RUNNER=ON
-  // Always load runner utils; only load CUDA runtime if it exists on this machine.
+  // Always load runner utils; only load CUDA runtime if it exists on this
+  // machine.
   llvm::SmallVector<llvm::StringRef> sharedLibs = {
       "/usr/local/lib/libmlir_c_runner_utils.so"};
   constexpr const char *cudaRuntime = "/usr/local/lib/libmlir_cuda_runtime.so";

@@ -311,14 +311,14 @@ func::FuncOp createMLPLinearFunction(MLIRContext &ctx,
 
   Value lin = hexir::LinearOp::create(builder, loc, rankedtensorfTy, c1, c2);
 
-  // hexir::PrintOp::create(builder, loc, lin);
+  hexir::PrintOp::create(builder, loc, lin);
 
-  Value relu = hexir::ReluOp::create(builder, loc, rankedtensorfTy, lin);
+  //Value relu = hexir::ReluOp::create(builder, loc, rankedtensorfTy, lin);
 
   // Value softmax = builder.create<hexir::SoftmaxOp::create(builder,loc,
   // tensor1DTy, c1D);
 
-  hexir::PrintOp::create(builder, loc, relu);
+  //hexir::PrintOp::create(builder, loc, relu);
 
   mlir::func::ReturnOp::create(builder, loc);
 
