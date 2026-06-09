@@ -63,7 +63,7 @@ static Value insertAllocAndDealloc(MemRefType type, Location loc,
   alloc->moveBefore(&parentBlock->front());
 
   // Make sure to deallocate this alloc at the end of the block. This is fine
-  // as mlp functions have no control flow.
+  // as hexir functions have no control flow.
   auto dealloc = memref::DeallocOp::create(rewriter, loc, alloc);
   dealloc->moveBefore(&parentBlock->back());
   return alloc;
@@ -111,7 +111,7 @@ static void lowerOpToLoops(Operation *op, PatternRewriter &rewriter,
 namespace
 {
   //===----------------------------------------------------------------------===//
-  // MlpToAffine Conversion Patterns: Binary operations
+  // HexirToAffine Conversion Patterns: Binary operations
   //===----------------------------------------------------------------------===//
 
   template <typename BinaryOp, typename LoweredBinaryOp>
@@ -141,19 +141,19 @@ namespace
     }
   };
 
-  using AddOpLowering = BinaryOpLowering<mlp::AddOp, arith::AddFOp>;
-  // using MulOpLowering = BinaryOpLowering<mlp::MulOp, arith::MulFOp>;
+  using AddOpLowering = BinaryOpLowering<hexir::AddOp, arith::AddFOp>;
+  // using MulOpLowering = BinaryOpLowering<hexir::MulOp, arith::MulFOp>;
 
   //===----------------------------------------------------------------------===//
-  // MlpToAffine Conversion Patterns: Constant operations
+  // HexirToAffine Conversion Patterns: Constant operations
   //===----------------------------------------------------------------------===//
 
-  struct ConstantOpLowering : public OpConversionPattern<mlp::ConstantOp>
+  struct ConstantOpLowering : public OpConversionPattern<hexir::ConstantOp>
   {
-    using OpConversionPattern<mlp::ConstantOp>::OpConversionPattern;
+    using OpConversionPattern<hexir::ConstantOp>::OpConversionPattern;
 
     LogicalResult
-    matchAndRewrite(mlp::ConstantOp op, OpAdaptor adaptor,
+    matchAndRewrite(hexir::ConstantOp op, OpAdaptor adaptor,
                     ConversionPatternRewriter &rewriter) const final
     {
       DenseElementsAttr constantValue = op.getValue();
@@ -222,15 +222,15 @@ namespace
   };
 
   //===----------------------------------------------------------------------===//
-  // MlpToAffine Conversion Patterns: Func operations
+  // HexirToAffine Conversion Patterns: Func operations
   //===----------------------------------------------------------------------===//
 
-  struct FuncOpLowering : public OpConversionPattern<mlp::FuncOp>
+  struct FuncOpLowering : public OpConversionPattern<hexir::FuncOp>
   {
-    using OpConversionPattern<mlp::FuncOp>::OpConversionPattern;
+    using OpConversionPattern<hexir::FuncOp>::OpConversionPattern;
 
     LogicalResult
-    matchAndRewrite(mlp::FuncOp op, OpAdaptor adaptor,
+    matchAndRewrite(hexir::FuncOp op, OpAdaptor adaptor,
                     ConversionPatternRewriter &rewriter) const final
     {
       // We only lower the main function as we expect that all other functions
@@ -245,7 +245,7 @@ namespace
                                            { diag << "expected 'main' to have 0 inputs and 0 results"; });
       }
 
-      // Create a new non-mlp function, with the same region.
+      // Create a new non-hexir function, with the same region.
       auto func = mlir::func::FuncOp::create(rewriter, op.getLoc(), op.getName(),
                                              op.getFunctionType());
       rewriter.inlineRegionBefore(op.getRegion(), func.getBody(), func.end());
@@ -255,18 +255,18 @@ namespace
   };
 
   //===----------------------------------------------------------------------===//
-  // MlpToAffine Conversion Patterns: Print operations
+  // HexirToAffine Conversion Patterns: Print operations
   //===----------------------------------------------------------------------===//
 
-  struct PrintOpLowering : public OpConversionPattern<mlp::PrintOp>
+  struct PrintOpLowering : public OpConversionPattern<hexir::PrintOp>
   {
-    using OpConversionPattern<mlp::PrintOp>::OpConversionPattern;
+    using OpConversionPattern<hexir::PrintOp>::OpConversionPattern;
 
     LogicalResult
-    matchAndRewrite(mlp::PrintOp op, OpAdaptor adaptor,
+    matchAndRewrite(hexir::PrintOp op, OpAdaptor adaptor,
                     ConversionPatternRewriter &rewriter) const final
     {
-      // We don't lower "mlp.print" in this pass, but we need to update its
+      // We don't lower "hexir.print" in this pass, but we need to update its
       // operands.
       rewriter.modifyOpInPlace(op,
                                [&]
@@ -276,35 +276,35 @@ namespace
   };
 
   // ===----------------------------------------------------------------------===//
-  // MlpToAffine Conversion Patterns: Return operations
+  // HexirToAffine Conversion Patterns: Return operations
   // ===----------------------------------------------------------------------===//
 
-  // struct ReturnOpLowering : public OpConversionPattern<mlp::ReturnOp> {
-  //   using OpConversionPattern<mlp::ReturnOp>::OpConversionPattern;
+  // struct ReturnOpLowering : public OpConversionPattern<hexir::ReturnOp> {
+  //   using OpConversionPattern<hexir::ReturnOp>::OpConversionPattern;
 
   //   LogicalResult
-  //   matchAndRewrite(mlp::ReturnOp op, OpAdaptor adaptor,
+  //   matchAndRewrite(hexir::ReturnOp op, OpAdaptor adaptor,
   //                   ConversionPatternRewriter &rewriter) const final {
   //     // During this lowering, we expect that all function calls have been
   //     // inlined.
   //     if (op.hasOperand())
   //       return failure();
 
-  //     // We lower "mlp.return" directly to "func.return".
+  //     // We lower "hexir.return" directly to "func.return".
   //     rewriter.replaceOpWithNewOp<func::ReturnOp>(op);
   //     return success();
   //   }
   // };
 
   // ===----------------------------------------------------------------------===//
-  // MlpToAffine Conversion Patterns: Transpose operations
+  // HexirToAffine Conversion Patterns: Transpose operations
   // ===----------------------------------------------------------------------===//
 
-  // struct TransposeOpLowering : public OpConversionPattern<mlp::TransposeOp> {
-  //   using OpConversionPattern<mlp::TransposeOp>::OpConversionPattern;
+  // struct TransposeOpLowering : public OpConversionPattern<hexir::TransposeOp> {
+  //   using OpConversionPattern<hexir::TransposeOp>::OpConversionPattern;
 
   //   LogicalResult
-  //   matchAndRewrite(mlp::TransposeOp op, OpAdaptor adaptor,
+  //   matchAndRewrite(hexir::TransposeOp op, OpAdaptor adaptor,
   //                   ConversionPatternRewriter &rewriter) const final {
   //     auto loc = op->getLoc();
   //     lowerOpToLoops(op, rewriter, [&](OpBuilder &builder, ValueRange loopIvs)
@@ -323,19 +323,19 @@ namespace
 } // namespace
 
 //===----------------------------------------------------------------------===//
-// MlpToAffineLoweringPass
+// HexirToAffineLoweringPass
 //===----------------------------------------------------------------------===//
 
-/// This is a partial lowering to affine loops of the mlp operations that are
+/// This is a partial lowering to affine loops of the hexir operations that are
 /// computationally intensive (like matmul for example...) while keeping the
-/// rest of the code in the Mlp dialect.
+/// rest of the code in the Hexir dialect.
 namespace
 {
-  struct MlpToAffineLoweringPass
-      : public PassWrapper<MlpToAffineLoweringPass, OperationPass<ModuleOp>>
+  struct HexirToAffineLoweringPass
+      : public PassWrapper<HexirToAffineLoweringPass, OperationPass<ModuleOp>>
   {
-    MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MlpToAffineLoweringPass)
-    StringRef getArgument() const override { return "mlp-to-affine"; }
+    MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(HexirToAffineLoweringPass)
+    StringRef getArgument() const override { return "hexir-to-affine"; }
 
     void getDependentDialects(DialectRegistry &registry) const override
     {
@@ -346,7 +346,7 @@ namespace
   };
 } // namespace
 
-void MlpToAffineLoweringPass::runOnOperation()
+void HexirToAffineLoweringPass::runOnOperation()
 {
   // The first thing to define is the conversion target. This will define the
   // final target for this lowering.
@@ -359,20 +359,20 @@ void MlpToAffineLoweringPass::runOnOperation()
                          arith::ArithDialect, func::FuncDialect,
                          memref::MemRefDialect>();
 
-  // We also define the Mlp dialect as Illegal so that the conversion will fail
+  // We also define the Hexir dialect as Illegal so that the conversion will fail
   // if any of these operations are *not* converted. Given that we actually want
-  // a partial lowering, we explicitly mark the Mlp operations that don't want
-  // to lower, `mlp.print`, as `legal`. `mlp.print` will still need its operands
+  // a partial lowering, we explicitly mark the Hexir operations that don't want
+  // to lower, `hexir.print`, as `legal`. `hexir.print` will still need its operands
   // to be updated though (as we convert from TensorType to MemRefType), so we
   // only treat it as `legal` if its operands are legal.
-  target.addIllegalDialect<mlp::MLPDialect>();
-  target.addDynamicallyLegalOp<mlp::PrintOp>([](mlp::PrintOp op)
+  target.addIllegalDialect<hexir::HexirDialect>();
+  target.addDynamicallyLegalOp<hexir::PrintOp>([](hexir::PrintOp op)
                                              { return llvm::none_of(op->getOperandTypes(),
                                                                     [](Type type)
                                                                     { return llvm::isa<TensorType>(type); }); });
 
   // Now that the conversion target has been defined, we just need to provide
-  // the set of patterns that will lower the Mlp operations.
+  // the set of patterns that will lower the Hexir operations.
   RewritePatternSet patterns(&getContext());
   patterns
       .add<
@@ -388,8 +388,8 @@ void MlpToAffineLoweringPass::runOnOperation()
 }
 
 // Create a pass for lowering operations in the `Affine` and `Std` dialects, for
-// a subset of the Mlp IR (e.g. matmul).
-std::unique_ptr<Pass> mlir::mlp::createLowerToAffinePass()
+// a subset of the Hexir IR (e.g. matmul).
+std::unique_ptr<Pass> mlir::hexir::createLowerToAffinePass()
 {
-  return std::make_unique<MlpToAffineLoweringPass>();
+  return std::make_unique<HexirToAffineLoweringPass>();
 }

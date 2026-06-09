@@ -2,7 +2,9 @@
 #include "Builder.h"
 #include "Dialect.h"
 #include "Jit.h"
+#include "LSDialects.h"
 #include "Passes.h"
+#include "TargetInfo.h"
 
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/DialectRegistry.h"
@@ -47,11 +49,17 @@
 #include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
 #include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
+#include "mlir/Conversion/GPUCommon/GPUCommonPass.h"
+#include "mlir/Conversion/GPUToNVVM/GPUToNVVM.h"
+#include "mlir/Conversion/GPUToNVVM/GPUToNVVMPass.h"
 #include "mlir/Conversion/IndexToLLVM/IndexToLLVM.h"
 #include "mlir/Conversion/MathToLLVM/MathToLLVM.h"
 #include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
+#include "mlir/Conversion/UBToLLVM/UBToLLVM.h"
+#include "mlir/Dialect/GPU/Transforms/Passes.h"
+#include "mlir/Target/LLVM/NVVM/Target.h"
 
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
 #include "mlir/ExecutionEngine/OptUtils.h"
@@ -68,6 +76,7 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorOr.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetSelect.h"
@@ -80,27 +89,29 @@
 #include <system_error>
 #include <utility>
 
-using namespace mlp;
+using namespace hexir;
 using namespace builder;
 namespace cl = llvm::cl;
 
-using namespace mlp;
+using namespace hexir;
 using namespace builder;
 namespace cl = llvm::cl;
 
 static cl::opt<std::string> inputFilename(cl::Positional,
-                                          cl::desc("<input mlp file>"),
+                                          cl::desc("<input hexir file>"),
                                           cl::init("-"),
                                           cl::value_desc("filename"));
 
 namespace {
-enum InputType { MLP, MLIR };
+enum InputType { HEXIR, MLIR };
 } // namespace
-static cl::opt<enum InputType> inputType(
-    "x", cl::init(MLP), cl::desc("Decided the kind of output desired"),
-    cl::values(clEnumValN(MLP, "mlp", "load the input file as a mlp source.")),
-    cl::values(clEnumValN(MLIR, "mlir",
-                          "load the input file as an MLIR file")));
+static cl::opt<enum InputType>
+    inputType("x", cl::init(HEXIR),
+              cl::desc("Decided the kind of output desired"),
+              cl::values(clEnumValN(HEXIR, "hexir",
+                                    "load the input file as a hexir source.")),
+              cl::values(clEnumValN(MLIR, "mlir",
+                                    "load the input file as an MLIR file")));
 
 namespace {
 enum Action {
@@ -118,7 +129,6 @@ enum Action {
 } // namespace
 static cl::opt<enum Action> emitAction(
     "emit", cl::desc("Select the kind of output desired"),
-    cl::values(clEnumValN(DumpAST, "ast", "output the AST dump")),
     cl::values(clEnumValN(DumpMLIR, "mlir", "output the MLIR dump")),
     cl::values(clEnumValN(DumpMLIRAffine, "mlir-affine",
                           "output the MLIR dump after affine lowering")),
@@ -137,6 +147,35 @@ static cl::opt<enum Action> emitAction(
 
 static cl::opt<bool> enableOpt("opt", cl::desc("Enable optimizations"));
 
+// Override op placement at runtime without recompiling, e.g.:
+//   ./hexir -emit=jit -placement=linalg.matmul=cpu
+//   ./hexir -emit=mlir-hetero -placement=linalg.matmul=cpu,linalg.generic=cuda
+static cl::list<std::string> placementOverrides(
+    "placement", cl::CommaSeparated, cl::ZeroOrMore,
+    cl::desc("Override op placement: <op-name>=<cpu|cuda>[,...]"),
+    cl::value_desc("op=device"));
+
+// Apply -placement overrides to the TargetSupport registry. Returns failure
+// on malformed entries or unsupported op/device combinations.
+static llvm::LogicalResult applyPlacementOverrides() {
+  auto &targets = mlir::hexir::TargetSupport::getInstance();
+  for (const std::string &entry : placementOverrides) {
+    auto [opName, device] = llvm::StringRef(entry).split('=');
+    if (opName.empty() ||
+        (device != "cpu" && device != "cuda" && device != "gpu")) {
+      llvm::errs() << "error: invalid -placement entry '" << entry
+                   << "' (expected <op-name>=<cpu|cuda|gpu>)\n";
+      return llvm::failure();
+    }
+    if (!targets.setPreferredTarget(opName, device)) {
+      llvm::errs() << "error: op '" << opName << "' does not support target '"
+                   << device << "'\n";
+      return llvm::failure();
+    }
+  }
+  return llvm::success();
+}
+
 static int loadMLIR(mlir::MLIRContext &context,
                     mlir::OwningOpRef<mlir::ModuleOp> &module) {
 
@@ -144,7 +183,7 @@ static int loadMLIR(mlir::MLIRContext &context,
   module = mlir::ModuleOp::create(mlir::UnknownLoc::get(&context));
 
   context.getOrLoadDialect<mlir::func::FuncDialect>();
-  context.getOrLoadDialect<mlir::mlp::MLPDialect>();
+  context.getOrLoadDialect<mlir::hexir::HexirDialect>();
 
   createMLPLinearFunction(context, *module);
   // createMLPAddFunction(context, *module);
@@ -165,7 +204,8 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   // Check to see what granularity of MLIR we are compiling to.
   bool isLoweringToLinalg = emitAction >= Action::DumpMLIRLinalg;
   bool isPartitioningForHetero = emitAction >= Action::DumpMLIRHetero;
-  bool isLoweringCudaToGpu = emitAction == Action::DumpMLIRGPU;
+  // Run GPU lowering for every stage at or beyond mlir-gpu (incl. jit/llvm).
+  bool isLoweringCudaToGpu = emitAction >= Action::DumpMLIRGPU;
   bool isLoweringToLLVM = emitAction >= Action::DumpMLIRLLVM;
 
   if (enableOpt || isLoweringToLinalg) {
@@ -174,15 +214,21 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
 
     // Now that there is only one function, we can infer the shapes of each of
     // the operations.
-    mlir::OpPassManager &optPM = pm.nest<mlir::mlp::FuncOp>();
+    mlir::OpPassManager &optPM = pm.nest<mlir::hexir::FuncOp>();
     optPM.addPass(mlir::createCanonicalizerPass());
-    optPM.addPass(mlir::mlp::createShapeInferencePass());
+    optPM.addPass(mlir::hexir::createShapeInferencePass());
     optPM.addPass(mlir::createCanonicalizerPass());
     optPM.addPass(mlir::createCSEPass());
   }
 
   if (isLoweringToLinalg) {
-    pm.addPass(mlir::mlp::createLowerToLinalgPass());
+    // Placement is decided on the frontend hexir ops (hexir.linear,
+    // hexir.relu, ...) BEFORE lowering; LowerToLinalg propagates the device
+    // attr onto the linalg ops it creates.
+    if (isPartitioningForHetero)
+      pm.addPass(mlir::hexir::createPartitionPass());
+
+    pm.addPass(mlir::hexir::createLowerToLinalgPass());
 
     if (emitAction == Action::DumpMLIRLinalg) {
       if (mlir::failed(pm.run(*module)))
@@ -190,8 +236,14 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
       return 0;
     }
 
-    if (isPartitioningForHetero)
-      pm.addPass(mlir::mlp::createPartitionPass());
+    if (isPartitioningForHetero) {
+      // Second run: fallback for linalg ops that didn't inherit a device
+      // attr (PartitionPass skips ops already annotated).
+      pm.addPass(mlir::hexir::createPartitionPass());
+      // Materialize device annotations into ls_cpu/ls_gpu model ops for ALL
+      // stages beyond linalg (not just the hetero inspection stage).
+      pm.addPass(mlir::hexir::createMaterializeLSTargetsPass());
+    }
 
     if (emitAction == Action::DumpMLIRHetero) {
       if (mlir::failed(pm.run(*module)))
@@ -199,13 +251,16 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
       return 0;
     }
 
+    // ls_cpu/ls_gpu → linalg (device attrs preserved for CudaGpuLoweringPass)
+    pm.addPass(mlir::hexir::createLSTargetsToLinalgPass());
+
     // Tensor → MemRef
     pm.addPass(mlir::bufferization::createOneShotBufferizePass());
     pm.addPass(
         mlir::bufferization::createBufferDeallocationSimplificationPass());
 
     if (isLoweringCudaToGpu)
-      pm.addPass(mlir::mlp::createCudaGpuLoweringPass());
+      pm.addPass(mlir::hexir::createCudaGpuLoweringPass());
 
     if (emitAction == Action::DumpMLIRGPU) {
       if (mlir::failed(pm.run(*module)))
@@ -213,8 +268,50 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
       return 0;
     }
 
-    // Linalg → loops
+    // Complete GPU lowering for stages beyond mlir-gpu (mlir-llvm, llvm, jit).
+    //
+    // Pipeline:
+    //   gpu.launch (inline body)
+    //     → gpu-kernel-outlining → gpu.module + gpu.launch_func
+    //     → nvvm-attach-target   → attaches NVPTX/sm_86 target to gpu.module
+    //     → convert-gpu-to-nvvm  → NVVM dialect inside gpu.module
+    //     → gpu-module-to-binary → compiles NVVM → PTX → CUBIN via ptxas
+    //                              (requires CUDA toolkit on the build machine)
+    //     → gpu-to-llvm          → host: gpu.launch_func → CUDA runtime calls
+    //
+    // Requires on the build/run machine:
+    //   - CUDA toolkit (nvcc, ptxas):  sudo apt install nvidia-cuda-toolkit
+    //   - libmlir_cuda_runtime.so:  build MLIR with
+    //   -DMLIR_ENABLE_CUDA_RUNNER=ON
+    //   - NVIDIA A6000 (sm_86) or adjust chip= below for other GPUs
+    // Linalg → loops for all CPU ops BEFORE GPU lowering so that gpu-to-llvm
+    // never sees live linalg ops (which it can't handle).
     pm.addPass(mlir::createConvertLinalgToLoopsPass());
+
+    if (isLoweringCudaToGpu) {
+      // 1. Extract inline gpu.launch body into a separate gpu.module +
+      // gpu.launch_func
+      pm.addPass(mlir::createGpuKernelOutliningPass());
+
+      // 2. Tag the gpu.module with NVPTX/sm_86 target metadata (A6000 = sm_86)
+      mlir::GpuNVVMAttachTargetOptions nvvmOpts;
+      nvvmOpts.chip = "sm_86";
+      nvvmOpts.features = "+ptx80";
+      nvvmOpts.optLevel = 3;
+      pm.addPass(mlir::createGpuNVVMAttachTarget(nvvmOpts));
+
+      // 3. Lower GPU dialect ops to NVVM inside the gpu.module
+      {
+        mlir::OpPassManager &gpuPM = pm.nest<mlir::gpu::GPUModuleOp>();
+        gpuPM.addPass(mlir::createConvertGpuOpsToNVVMOps());
+      }
+
+      // 4. Compile NVVM → PTX → CUBIN and embed as gpu.binary
+      pm.addPass(mlir::createGpuModuleToBinaryPass());
+
+      // 5. Lower host-side gpu.launch_func to CUDA runtime calls
+      pm.addPass(mlir::createGpuToLLVMConversionPass());
+    }
 
     // SCF → CFG
     pm.addPass(mlir::createSCFToControlFlowPass());
@@ -227,8 +324,8 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
 
   //   if (isLoweringToLinalg)
   //   {
-  //     // Partially lower the mlp dialect.
-  //     pm.addPass(mlir::mlp::createLowerToLinalgPass());
+  //     // Partially lower the hexir dialect.
+  //     pm.addPass(mlir::hexir::createLowerToLinalgPass());
 
   //     // Add a few cleanups post lowering.
   //     // mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
@@ -262,11 +359,11 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
   //   }
 
   if (isLoweringToLLVM) {
-    // Finish lowering the mlp IR to the LLVM dialect.
-    pm.addPass(mlir::mlp::createLowerToLLVMPass());
-    // This is necessary to have line tables emitted and basic
-    // debugger working. In the future we will add proper debug information
-    // emission directly from our frontend.
+    // Finish lowering the hexir IR to the LLVM dialect.
+    pm.addPass(mlir::hexir::createLowerToLLVMPass());
+    // Clean up unrealized casts left by partial conversions (linalg→loops,
+    // bufferization, gpu-to-llvm) after the final LLVM lowering pass.
+    pm.addPass(mlir::createReconcileUnrealizedCastsPass());
     pm.addPass(mlir::LLVM::createDIScopeForLLVMFuncOpPass());
   }
 
@@ -277,7 +374,7 @@ static int loadAndProcessMLIR(mlir::MLIRContext &context,
 
 static int dumpAST() {
   if (inputType == InputType::MLIR) {
-    llvm::errs() << "Can't dump a mlp AST when the input is MLIR\n";
+    llvm::errs() << "Can't dump a hexir AST when the input is MLIR\n";
     return 5;
   }
 
@@ -356,6 +453,24 @@ static int runJit(mlir::ModuleOp module) {
   // the module.
   mlir::ExecutionEngineOptions engineOptions;
   engineOptions.transformer = optPipeline;
+  // Load MLIR runner utilities (printf support) and CUDA runtime if available.
+  // To enable actual GPU execution:
+  //   1. Install CUDA toolkit:  sudo apt install nvidia-cuda-toolkit
+  //   2. Build MLIR with CUDA:  cmake -DMLIR_ENABLE_CUDA_RUNNER=ON ...
+  //      (produces /usr/local/lib/libmlir_cuda_runtime.so)
+  // Load MLIR runner utils and the CUDA runtime wrapper.
+  // libmlir_cuda_runtime.so provides mgpu* symbols (mgpuStreamCreate,
+  // mgpuLaunchKernel, etc.) that the lowered IR calls. It is produced by
+  // building MLIR on the server with:
+  //   cmake ... -DMLIR_ENABLE_CUDA_RUNNER=ON
+  // Always load runner utils; only load CUDA runtime if it exists on this
+  // machine.
+  llvm::SmallVector<llvm::StringRef> sharedLibs = {
+      "/usr/local/lib/libmlir_c_runner_utils.so"};
+  constexpr const char *cudaRuntime = "/usr/local/lib/libmlir_cuda_runtime.so";
+  if (llvm::sys::fs::exists(cudaRuntime))
+    sharedLibs.push_back(cudaRuntime);
+  engineOptions.sharedLibPaths = sharedLibs;
   auto maybeEngine = mlir::ExecutionEngine::create(module, engineOptions);
   assert(maybeEngine && "failed to construct an execution engine");
   auto &engine = maybeEngine.get();
@@ -376,7 +491,11 @@ int main(int argc, char **argv) {
   mlir::registerMLIRContextCLOptions();
   mlir::registerPassManagerCLOptions();
 
-  cl::ParseCommandLineOptions(argc, argv, "mlp compiler\n");
+  cl::ParseCommandLineOptions(argc, argv, "hexir compiler\n");
+
+  // Apply -placement overrides before any pass runs.
+  if (llvm::failed(applyPlacementOverrides()))
+    return 1;
 
   if (emitAction == Action::DumpAST)
     return dumpAST();
@@ -389,12 +508,19 @@ int main(int argc, char **argv) {
                   mlir::scf::SCFDialect, mlir::memref::MemRefDialect,
                   mlir::affine::AffineDialect, mlir::math::MathDialect,
                   mlir::LLVM::LLVMDialect, mlir::cf::ControlFlowDialect,
-                  mlir::bufferization::BufferizationDialect>();
+                  mlir::bufferization::BufferizationDialect,
+                  mlir::ls_cpu::LSCPUDialect, mlir::ls_gpu::LSGPUDialect>();
+
+  // Register dialect extensions BEFORE constructing the context so they are
+  // visible to passes that query ConvertToLLVMPatternInterface.
+  mlir::func::registerAllExtensions(registry);
+  mlir::registerAllExtensions(registry);
+  mlir::ub::registerConvertUBToLLVMInterface(registry);
+  mlir::NVVM::registerNVVMTargetInterfaceExternalModels(registry);
+  mlir::NVVM::registerConvertGpuToNVVMInterface(registry);
+  mlir::LLVM::registerInlinerInterface(registry);
 
   MLIRContext context(registry);
-
-  mlir::func::registerAllExtensions(registry);
-  mlir::LLVM::registerInlinerInterface(registry);
 
   // Register bufferizable op interface external models AFTER dialects loaded
   mlir::bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(
@@ -407,7 +533,9 @@ int main(int argc, char **argv) {
       const_cast<mlir::DialectRegistry &>(context.getDialectRegistry()));
 
   // Load our Dialect in this MLIR Context.
-  context.getOrLoadDialect<mlir::mlp::MLPDialect>();
+  context.getOrLoadDialect<mlir::hexir::HexirDialect>();
+  context.getOrLoadDialect<mlir::ls_cpu::LSCPUDialect>();
+  context.getOrLoadDialect<mlir::ls_gpu::LSGPUDialect>();
   context.loadAllAvailableDialects();
 
   mlir::OwningOpRef<mlir::ModuleOp> module;

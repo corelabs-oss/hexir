@@ -8,8 +8,10 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/IRMapping.h"
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/TypeSwitch.h"
 
 using namespace mlir;
 
@@ -19,7 +21,7 @@ struct CudaGpuLoweringPass
     : public PassWrapper<CudaGpuLoweringPass, OperationPass<ModuleOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(CudaGpuLoweringPass)
 
-  StringRef getArgument() const final { return "mlp-lower-cuda-to-gpu"; }
+  StringRef getArgument() const final { return "hexir-lower-cuda-to-gpu"; }
 
   StringRef getDescription() const final {
     return "Lower CUDA-partitioned linalg ops to the MLIR GPU dialect.";
@@ -32,20 +34,96 @@ struct CudaGpuLoweringPass
 
   void runOnOperation() final {
     ModuleOp module = getOperation();
-    SmallVector<linalg::MatmulOp> cudaMatmuls;
+    SmallVector<linalg::LinalgOp> cudaOps;
 
-    module.walk([&](linalg::MatmulOp op) {
+    // Collect ALL cuda-annotated linalg ops, regardless of kind.
+    module.walk([&](linalg::LinalgOp op) {
       auto device = op->getAttrOfType<StringAttr>("device");
       if (device && device.getValue() == "cuda")
-        cudaMatmuls.push_back(op);
+        cudaOps.push_back(op);
     });
 
-    for (linalg::MatmulOp matmul : cudaMatmuls) {
-      if (failed(lowerMatmul(matmul))) {
+    for (linalg::LinalgOp op : cudaOps) {
+      LogicalResult result =
+          llvm::TypeSwitch<Operation *, LogicalResult>(op)
+              .Case<linalg::MatmulOp>(
+                  [&](linalg::MatmulOp matmul) { return lowerMatmul(matmul); })
+              .Default([&](Operation *) { return lowerElementwise(op); });
+      if (failed(result)) {
         signalPassFailure();
         return;
       }
     }
+  }
+
+  /// Generic lowering for any elementwise linalg op (all-parallel iterators,
+  /// identity indexing maps): wraps nested loops in a gpu.launch and clones
+  /// the op's scalar body, mapping block args to memref loads and the yield
+  /// to a memref store. Covers linalg.generic (relu), linalg.add, etc.
+  LogicalResult lowerElementwise(linalg::LinalgOp linalgOp) {
+    Operation *op = linalgOp;
+    if (op->getNumResults() != 0)
+      return op->emitOpError()
+             << "expected bufferized memref form before GPU lowering";
+
+    // Must be elementwise: all iterators parallel, all maps identity.
+    for (utils::IteratorType it : linalgOp.getIteratorTypesArray())
+      if (it != utils::IteratorType::parallel)
+        return op->emitOpError()
+               << "unsupported cuda linalg op: non-parallel iterator";
+    for (AffineMap map : linalgOp.getIndexingMapsArray())
+      if (!map.isIdentity())
+        return op->emitOpError()
+               << "unsupported cuda linalg op: non-identity indexing map";
+
+    Value out = linalgOp.getDpsInitOperand(0)->get();
+    auto outType = dyn_cast<MemRefType>(out.getType());
+    if (!outType || !outType.hasStaticShape())
+      return op->emitOpError() << "expected static-shape memref output";
+
+    OpBuilder builder(op);
+    Location loc = op->getLoc();
+
+    Value c0 = arith::ConstantIndexOp::create(builder, loc, 0);
+    Value c1 = arith::ConstantIndexOp::create(builder, loc, 1);
+
+    gpu::LaunchOp launch =
+        gpu::LaunchOp::create(builder, loc, c1, c1, c1, c1, c1, c1);
+    launch->setAttr("device", builder.getStringAttr("cuda"));
+
+    Block &launchBody = launch.getBody().front();
+    builder.setInsertionPointToEnd(&launchBody);
+    gpu::TerminatorOp::create(builder, loc);
+    builder.setInsertionPointToStart(&launchBody);
+
+    // One scf.for per output dimension.
+    SmallVector<Value> ivs;
+    for (int64_t dim : outType.getShape()) {
+      Value ub = arith::ConstantIndexOp::create(builder, loc, dim);
+      scf::ForOp loop = scf::ForOp::create(builder, loc, c0, ub, c1);
+      builder.setInsertionPointToStart(loop.getBody());
+      ivs.push_back(loop.getInductionVar());
+    }
+
+    // Map scalar block args to loads: inputs first, then the init/output.
+    Block &body = linalgOp->getRegion(0).front();
+    IRMapping mapping;
+    unsigned argIdx = 0;
+    for (OpOperand *input : linalgOp.getDpsInputOperands())
+      mapping.map(body.getArgument(argIdx++),
+                  memref::LoadOp::create(builder, loc, input->get(), ivs));
+    mapping.map(body.getArgument(argIdx),
+                memref::LoadOp::create(builder, loc, out, ivs));
+
+    // Clone the scalar body; yield becomes a store to the output.
+    for (Operation &bodyOp : body.without_terminator())
+      builder.clone(bodyOp, mapping);
+    auto yield = cast<linalg::YieldOp>(body.getTerminator());
+    Value result = mapping.lookupOrDefault(yield.getOperand(0));
+    memref::StoreOp::create(builder, loc, result, out, ivs);
+
+    op->erase();
+    return success();
   }
 
   LogicalResult lowerMatmul(linalg::MatmulOp matmul) {
@@ -123,6 +201,6 @@ struct CudaGpuLoweringPass
 
 } // namespace
 
-std::unique_ptr<Pass> mlir::mlp::createCudaGpuLoweringPass() {
+std::unique_ptr<Pass> mlir::hexir::createCudaGpuLoweringPass() {
   return std::make_unique<CudaGpuLoweringPass>();
 }

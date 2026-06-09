@@ -1,6 +1,6 @@
-//===- Dialect.cpp - mlp dialect (only add) -----------------------------===//
+//===- Dialect.cpp - hexir dialect (only add) -----------------------------===//
 //
-// Minimal mlp dialect implementation with a single AddOp.
+// Minimal hexir dialect implementation with a single AddOp.
 //
 //===----------------------------------------------------------------------===//
 
@@ -38,36 +38,36 @@
 #include <string>
 
 using namespace mlir;
-using namespace mlir::mlp;
+using namespace mlir::hexir;
 
-/// Generated dialect definitions (MLPDialect, etc.).
+/// Generated dialect definitions (HexirDialect, etc.).
 #include "Dialect.cpp.inc"
 
 //===----------------------------------------------------------------------===//
-// MlpInlinerInterface
+// HexirInlinerInterface
 //===----------------------------------------------------------------------===//
 
-/// This class defines the interface for handling inlining with Mlp
+/// This class defines the interface for handling inlining with Hexir
 /// operations.
-struct MlpInlinerInterface : public DialectInlinerInterface {
+struct HexirInlinerInterface : public DialectInlinerInterface {
   using DialectInlinerInterface::DialectInlinerInterface;
 
   //===--------------------------------------------------------------------===//
   // Analysis Hooks
   //===--------------------------------------------------------------------===//
 
-  /// All call operations within mlp can be inlined.
+  /// All call operations within hexir can be inlined.
   bool isLegalToInline(Operation *call, Operation *callable,
                        bool wouldBeCloned) const final {
     return true;
   }
 
-  /// All operations within mlp can be inlined.
+  /// All operations within hexir can be inlined.
   bool isLegalToInline(Operation *, Region *, bool, IRMapping &) const final {
     return true;
   }
 
-  // All functions within mlp can be inlined.
+  // All functions within hexir can be inlined.
   bool isLegalToInline(Region *, Region *, bool, IRMapping &) const final {
     return true;
   }
@@ -76,11 +76,11 @@ struct MlpInlinerInterface : public DialectInlinerInterface {
   // Transformation Hooks
   //===--------------------------------------------------------------------===//
 
-  /// Handle the given inlined terminator(mlp.return) by replacing it with a new
+  /// Handle the given inlined terminator(hexir.return) by replacing it with a new
   /// operation as necessary.
   // void handleTerminator(Operation *op,
   // ArrayRef<Value> valuesToRepl) const final {
-  // // Only "mlp.return" needs to be handled here.
+  // // Only "hexir.return" needs to be handled here.
   // auto returnOp = cast<ReturnOp>(op);
 
   // // Replace the values directly with the return operands.
@@ -107,28 +107,28 @@ struct MlpInlinerInterface : public DialectInlinerInterface {
 #undef GET_OP_CLASSES
 
 /// Dialect initialization: register AddOp only.
-void MLPDialect::initialize() {
+void HexirDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
 #include "Ops.cpp.inc"
       // #undef GET_OP_LIST
       >();
-  // addInterfaces<MlpInlinerInterface>();
+  // addInterfaces<HexirInlinerInterface>();
   // addTypes<StructType>();
 
 
 }
 
-// void MlpDialect::initialize() {
+// void HexirDialect::initialize() {
 // addOperations<
 // #define GET_OP_LIST
 // #include "Ops.cpp.inc"
 // >();
-// addInterfaces<MlpInlinerInterface>();
+// addInterfaces<HexirInlinerInterface>();
 // addTypes<StructType>();
 // }
 
-// mlir::Operation *MlpDialect::materializeConstant(mlir::OpBuilder &builder,
+// mlir::Operation *HexirDialect::materializeConstant(mlir::OpBuilder &builder,
 //                                                  mlir::Attribute value,
 //                                                  mlir::Type type,
 //                                                  mlir::Location loc) {
@@ -140,36 +140,36 @@ void MLPDialect::initialize() {
 /// of 'printBinaryOp' below.
 
 //===----------------------------------------------------------------------===//
-// MLPDialect type parsing / printing
+// HexirDialect type parsing / printing
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
-// MLPDialect type parsing / printing
+// HexirDialect type parsing / printing
 //===----------------------------------------------------------------------===//
 
-mlir::Type MLPDialect::parseType(mlir::DialectAsmParser &parser) const {
+mlir::Type HexirDialect::parseType(mlir::DialectAsmParser &parser) const {
   // If you do NOT want custom types, just reject all:
   parser.emitError(parser.getCurrentLocation(),
-                   "mlp dialect has no custom types");
+                   "hexir dialect has no custom types");
   return Type();
 }
 
-void MLPDialect::printType(mlir::Type type,
+void HexirDialect::printType(mlir::Type type,
                            mlir::DialectAsmPrinter &printer) const {
-  // We should never be asked to print a mlp-specific type in this minimal
+  // We should never be asked to print a hexir-specific type in this minimal
   // setup.
-  llvm_unreachable("mlp dialect has no custom types to print");
+  llvm_unreachable("hexir dialect has no custom types to print");
 }
 
 //===----------------------------------------------------------------------===//
-// MLPDialect constant materializer
+// HexirDialect constant materializer
 //===----------------------------------------------------------------------===//
 
-// mlir::Operation *MLPDialect::materializeConstant(mlir::OpBuilder &builder,
+// mlir::Operation *HexirDialect::materializeConstant(mlir::OpBuilder &builder,
 // mlir::Attribute value,
 // mlir::Type type,
 // mlir::Location loc) {
-// // If you do not use mlp.constant anymore, just return nullptr.
+// // If you do not use hexir.constant anymore, just return nullptr.
 // return nullptr;
 // }
 
@@ -178,7 +178,7 @@ void MLPDialect::printType(mlir::Type type,
 //===----------------------------------------------------------------------===//
 
 namespace mlir {
-namespace mlp {
+namespace hexir {
 
   //===----------------------------------------------------------------------===//
 // Helpers for unary ops
@@ -310,7 +310,7 @@ void AddOp::print(OpAsmPrinter &p) { printBinaryOp(p, *this); }
 // LinearOp
 //===----------------------------------------------------------------------===//
 
-void mlir::mlp::LinearOp::build(OpBuilder &builder, OperationState &state,
+void mlir::hexir::LinearOp::build(OpBuilder &builder, OperationState &state,
                                 Value lhs, Value rhs) {
 
   state.addTypes(lhs.getType());
@@ -636,17 +636,17 @@ mlir::LogicalResult ConstantOp::verify() {
 // return !input.hasRank() || !output.hasRank() || input == output;
 // }
 
-} // namespace mlp
+} // namespace hexir
 } // namespace mlir
 
 //===----------------------------------------------------------------------===//
-// mlp Types
+// hexir Types
 //===----------------------------------------------------------------------===//
 
 // namespace mlir {
-// namespace mlp {
+// namespace hexir {
 // namespace detail {
-// /// This class represents the internal storage of the mlp `StructType`.
+// /// This class represents the internal storage of the hexir `StructType`.
 // struct StructTypeStorage : public mlir::TypeStorage {
 //   /// The `KeyTy` is a required type that provides an interface for the
 //   storage
@@ -706,7 +706,7 @@ mlir::LogicalResult ConstantOp::verify() {
 //   llvm::ArrayRef<mlir::Type> elementTypes;
 // };
 // } // namespace detail
-// } // namespace mlp
+// } // namespace hexir
 // } // namespace mlir
 
 /// Create an instance of a `StructType` with the given element types. There
@@ -727,8 +727,8 @@ mlir::LogicalResult ConstantOp::verify() {
 //   return getImpl()->elementTypes;
 // }
 
-/// Parse an instance of a type registered to the mlp dialect.
-// mlir::Type MLPDialect::parseType(mlir::DialectAsmParser &parser) const {
+/// Parse an instance of a type registered to the hexir dialect.
+// mlir::Type HexirDialect::parseType(mlir::DialectAsmParser &parser) const {
 // // Parse a struct type in the following form:
 // // struct-type ::= `struct` `<` type (`,` type)* `>`
 

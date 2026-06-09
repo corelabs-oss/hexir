@@ -1,263 +1,138 @@
-# MLP-MLIR
+<div align="center">
+  <img src="assets/logo.svg" width="140" alt="Hexir logo"/>
 
-[![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
-[![CMake](https://img.shields.io/badge/CMake-3.13.4+-blue.svg)](https://cmake.org/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
+  # Hexir
 
-MLP-MLIR is a research compiler built on LLVM MLIR for experimenting with neural-network dialects, lowering pipelines, and heterogeneous CPU/GPU partitioning. It demonstrates end-to-end compilation of synthetic MLP (Multi-Layer Perceptron) programs through custom MLIR dialects to executable code.
+  **A heterogeneous ML compiler built on MLIR**
 
-## Table of Contents
+  *One graph in — partitioned, lowered, and executed across CPU and GPU.*
 
-- [Features](#features)
-- [Architecture](#architecture)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Build](#build)
-- [Quick Start](#quick-start)
-- [Usage](#usage)
-- [Emit Modes](#emit-modes)
-- [Heterogeneous Support](#heterogeneous-support)
-- [Contributing](#contributing)
-- [License](#license)
+  [![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
+  [![MLIR](https://img.shields.io/badge/LLVM-MLIR-orange.svg)](https://mlir.llvm.org/)
+  [![CMake](https://img.shields.io/badge/CMake-3.13.4%2B-064F8C.svg)](https://cmake.org/)
+  [![Tests](https://img.shields.io/badge/tests-lit%20%2B%20FileCheck-brightgreen.svg)](#testing)
+  [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 
-## Features
+</div>
 
-- **Custom MLIR Dialect**: Defines `mlp` operations for neural network primitives
-- **Progressive Lowering**: Multi-stage compilation pipeline from high-level ops to LLVM IR
-- **Heterogeneous Partitioning**: Automatic CPU/CUDA placement for operations
-- **JIT Compilation**: Runtime code generation and execution for CPU path
-- **GPU Dialect Generation**: CUDA operations lowered to MLIR GPU dialect
-- **Extensible Backend System**: Support for CPU, CUDA, Metal, ROCm, and RISC-V targets
+---
+
+Hexir (**H**eterogeneous **EX**ecution **IR**) is a research compiler that demonstrates end-to-end compilation of neural-network programs through a custom MLIR dialect: progressive lowering, automatic CPU/CUDA partitioning, and JIT execution.
+
+```mlir
+%2 = hexir.linear %0, %1 : tensor<2x2xf64>   // placed on GPU as linalg.matmul
+%3 = hexir.relu %2 : tensor<2x2xf64>         // placed on CPU
+hexir.print %3 : tensor<2x2xf64>
+```
+
+## Highlights
+
+- **Custom MLIR dialect** — `hexir` ops for neural-network primitives (`linear`, `relu`, `sigmoid`, `softmax`, …), defined in TableGen with shape inference
+- **Progressive lowering** — `hexir` → linalg/tensor → bufferized memref → SCF/CF → LLVM IR, inspectable at every stage
+- **Heterogeneous partitioning** — a partition pass assigns each op a device based on a target-support registry; compute-heavy ops go to CUDA, element-wise and I/O stay on CPU
+- **GPU dialect generation** — CUDA-partitioned ops lower to `gpu.launch` kernels
+- **JIT execution** — the CPU path compiles and runs in-process via MLIR's ExecutionEngine
+- **Lit/FileCheck test suite** — one test per pipeline stage
 
 ## Architecture
 
-The compiler follows a layered architecture:
-
 ```
-High-Level IR (mlp dialect)
-    ↓ Lowering
-Linalg/Arith/Tensor Operations
-    ↓ Partitioning
-CPU/CUDA Annotated Operations
-    ↓ Bufferization
-Memory Operations + GPU Launch
-    ↓ Target Lowering
-LLVM IR / GPU Kernels
+                         hexir dialect       -->    (high-level NN ops, shape inference)
+                              │
+                              ▼
+                    linalg / arith / tensor  -->    (structured ops on tensors)
+                              │
+                              ▼
+                         partitioning pass   -->    (device = "cpu" | "cuda" per op)
+                         ┌─────┴─────┐
+                         ▼           ▼
+                    CPU partition   CUDA partition
+                         │           │
+                         ▼           ▼
+                    bufferization   gpu.launch kernels
+                         │
+                         ▼
+                    SCF → CF → LLVM dialect
+                         │
+                         ▼
+                    LLVM IR → JIT execution
 ```
 
-### Key Components
 
-- **Dialect Definition** (`include/Ops.td`): TableGen definitions for MLP operations
-- **Builder** (`src/Builder.cpp`): Constructs synthetic neural network programs
-- **Passes**: Lowering and optimization passes in `src/`
-- **Backends** (`targets/`): Target-specific code generation
-- **JIT Runtime** (`src/Jit.cpp`): Execution engine for CPU path
+### Build
 
-## Requirements
-
-- **C++17** compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
-- **CMake** 3.13.4 or later
-- **LLVM/MLIR** development build with the following components:
-  - MLIR Core libraries
-  - LLVM Core libraries
-  - TableGen
-  - OrcJIT
-
-### LLVM/MLIR Setup
-
-This project requires a full LLVM/MLIR build. The code has been developed against recent LLVM trunk. If your MLIR installation uses different library names, update the `target_link_libraries` in `CMakeLists.txt`.
-
-## Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd mlp_mlir
-   ```
-
-2. **Set up LLVM/MLIR environment:**
-   Ensure `LLVM_DIR` and `MLIR_DIR` point to your LLVM build directory in `CMakeLists.txt`:
-   ```cmake
-   set(LLVM_DIR "/path/to/llvm/build/lib/cmake/llvm")
-   set(MLIR_DIR "/path/to/llvm/build/lib/cmake/mlir")
-   ```
-
-## Build
-
-### Initial Build
 ```bash
-mkdir -p build
-cd build
+git clone git@github.com:hamzaqureshi5/hexir.git && cd hexir
+mkdir -p build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 ```
 
-### Rebuild
-```bash
-cd build
-make -j$(nproc)
-```
-
-### Clean Build
-```bash
-cd build
-make clean
-make -j$(nproc)
-```
-
-## Quick Start
-
-After building, run the CPU JIT to execute a synthetic MLP program:
-
-```bash
-cd build
-./mlp_mlir -emit=jit
-```
-
-**Expected Output:**
-```
-8.000000 17.000000
-12.000000 14.000000
-```
-
-This executes a `linear → relu → print` neural network computation.
-
 ## Usage
 
-The main executable `mlp_mlir` supports various emit modes for inspecting the compilation pipeline:
+Every stage of the pipeline can be dumped for inspection:
 
-### Basic Commands
+| Emit mode | Output |
+|---|---|
+| `-emit=mlir` | Initial module in the `hexir` dialect |
+| `-emit=mlir-linalg` | After lowering to `linalg`/`arith`/`tensor` |
+| `-emit=mlir-hetero` | After CPU/CUDA partitioning (`ls_cpu`/`ls_gpu` ops) |
+| `-emit=mlir-gpu` | CUDA partitions as `gpu.launch` kernels |
+| `-emit=mlir-llvm` | CPU path in the LLVM dialect |
+| `-emit=llvm` | Translated LLVM IR |
+| `-emit=jit` | JIT-compile and execute |
 
-```bash
-# Inspect initial MLIR
-./mlp_mlir -emit=mlir
-
-# View linalg lowering
-./mlp_mlir -emit=mlir-linalg
-
-# See CPU/CUDA partitioning
-./mlp_mlir -emit=mlir-hetero
-
-# Inspect GPU dialect lowering
-./mlp_mlir -emit=mlir-gpu
-
-# Generate LLVM IR
-./mlp_mlir -emit=llvm
-
-# JIT compile and run
-./mlp_mlir -emit=jit
-```
-
-### With Optimizations
-
-Enable MLIR optimizations:
+Add `-opt` to enable optimizations, or `--print-ir-after-all` to trace the pass pipeline:
 
 ```bash
-./mlp_mlir -emit=jit -opt
+./hexir -emit=mlir-hetero
+./hexir -emit=jit -opt
 ```
 
-## Emit Modes
-
-| Mode | Description |
-|------|-------------|
-| `mlir` | Initial MLIR module with custom `mlp` operations |
-| `mlir-linalg` | Lowered to `linalg`, `arith`, and tensor operations |
-| `mlir-hetero` | Operations annotated with CPU/CUDA device placement |
-| `mlir-gpu` | CUDA operations lowered to `gpu.launch` kernels |
-| `mlir-llvm` | CPU path lowered to LLVM dialect |
-| `llvm` | Translated to LLVM IR text format |
-| `jit` | JIT-compiled and executed on CPU |
-
-## Heterogeneous Support
-
-MLP-MLIR demonstrates early heterogeneous compilation by partitioning operations across CPU and CUDA devices:
-
-- **CUDA Partition**: `linalg.matmul` operations marked for GPU execution
-- **CPU Partition**: Element-wise operations (`relu`) and I/O (`print`) on CPU
-
-### Example Partitioned IR
+### Example: partitioned IR
 
 ```mlir
-module attributes {mlp.targets = ["cpu", "cuda"]} {
-  %0 = linalg.matmul {device = "cuda"} ...  // GPU matrix multiplication
-  %1 = linalg.generic {device = "cpu"} ...   // CPU element-wise ReLU
-  mlp.print {device = "cpu"} ...             // CPU output
+module attributes {hexir.targets = ["cpu", "cuda"]} {
+  %0 = ls_gpu.matmul %cst, %cst_0 : tensor<2x2xf64>   // GPU
+  %1 = ls_cpu.relu %0 : tensor<2x2xf64>               // CPU
+  hexir.print %1 {device = "cpu"} : memref<2x2xf64>
 }
 ```
 
-### GPU Lowering
+> **Note** — the CUDA path currently generates MLIR GPU IR for inspection; only the CPU path executes. Full CUDA runtime integration is on the roadmap.
 
-CUDA-marked operations are lowered to MLIR GPU dialect:
+## Testing
 
-```mlir
-gpu.launch ... {
-  scf.for ... {
-    // Matrix multiplication kernel
-    memref.load ...
-    arith.mulf ... arith.addf ...
-    memref.store ...
-  }
-  gpu.terminator
-} {device = "cuda"}
+The lit/FileCheck suite covers each pipeline stage plus end-to-end JIT execution:
+
+```bash
+cd build && make check-hexir     # full suite
+lit -v test                      # from the repo root
+lit -v test --filter=jit         # single test
 ```
 
-**Note**: The CUDA path currently generates MLIR GPU IR for inspection. Full CUDA runtime integration (kernel launching, memory transfers) is planned for future development.
+## Roadmap
 
-## Current Pipeline
-
-The synthetic program (`src/Builder.cpp`) creates a simple MLP:
-
-```text
-mlp.constant  →  mlp.linear  →  mlp.relu  →  mlp.print
-```
-
-**Lowering Flow:**
-```
-mlp dialect
-  ↓ Shape inference, canonicalization
-linalg + arith + tensor operations
-  ↓ Partitioning pass
-CPU/CUDA placement annotations
-  ↓ Bufferization
-memref operations + gpu.launch
-  ↓ Target-specific lowering
-LLVM IR (CPU) / GPU kernels (CUDA)
-```
+- [ ] CUDA runtime integration (kernel launch, host↔device transfers)
+- [ ] Graph-level partitioning (clustered subgraphs instead of per-op placement)
+- [ ] Memory-transfer insertion at partition boundaries
+- [ ] Additional NN operations and frontends
+- [ ] Additional backends (Metal, ROCm, RISC-V scaffolding in `targets/`)
 
 ## Contributing
 
-We welcome contributions! Please follow these guidelines:
-
-1. **Fork** the repository
-2. **Create** a feature branch: `git checkout -b feature/your-feature`
-3. **Commit** changes: `git commit -am 'Add your feature'`
-4. **Push** to the branch: `git push origin feature/your-feature`
-5. **Submit** a Pull Request
-
-### Development Setup
-
-- Use the provided `build.sh` script for consistent builds
-- Run tests with `./mlp_mlir -emit=jit` to verify functionality
-- Follow the existing code style and naming conventions
-
-### Areas for Contribution
-
-- Complete CUDA runtime integration
-- Add more neural network operations
-- Implement additional backends (Vulkan, OpenCL)
-- Performance optimizations and benchmarking
-- Documentation improvements
+1. Fork the repository and create a feature branch
+2. Make your changes; keep `make check-hexir` green
+3. Open a Pull Request
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+Apache License 2.0.
 
 ## Acknowledgments
 
-- Built on [LLVM MLIR](https://mlir.llvm.org/) infrastructure
-- Inspired by research in heterogeneous compilation for machine learning
-- Part of ongoing work in compiler design for neural networks
+Built on the [LLVM MLIR](https://mlir.llvm.org/) infrastructure; the dialect scaffolding draws on the MLIR Toy tutorial. Part of ongoing research in heterogeneous compilation for machine learning.
 
 ---
 
-**Note**: This is research software under active development. APIs and behavior may change without notice.
+<div align="center"><sub>Hexir is research software under active development — APIs and IR may change without notice.</sub></div>

@@ -35,15 +35,15 @@ namespace
 {
 
   //===----------------------------------------------------------------------===//
-  // MLPTolinalg RewritePatterns: Constant operations
+  // HexirToLinalg RewritePatterns: Constant operations
   //===----------------------------------------------------------------------===//
 
   // struct ConstantOpToArith
-  //     : public mlir::OpConversionPattern<mlir::mlp::ConstantOp> {
+  //     : public mlir::OpConversionPattern<mlir::hexir::ConstantOp> {
   //   using OpConversionPattern::OpConversionPattern;
 
   //   mlir::LogicalResult
-  //   matchAndRewrite(mlir::mlp::ConstantOp op, OpAdaptor adaptor,
+  //   matchAndRewrite(mlir::hexir::ConstantOp op, OpAdaptor adaptor,
   //                   mlir::ConversionPatternRewriter &rewriter) const override {
 
   //     auto attr = llvm::dyn_cast<DenseElementsAttr>(op.getValue());
@@ -62,12 +62,12 @@ namespace
   //   }
   // };
 
-  struct ConstantOpToArith : public OpConversionPattern<mlp::ConstantOp>
+  struct ConstantOpToArith : public OpConversionPattern<hexir::ConstantOp>
   {
     using OpConversionPattern::OpConversionPattern;
 
     LogicalResult
-    matchAndRewrite(mlp::ConstantOp op, OpAdaptor,
+    matchAndRewrite(hexir::ConstantOp op, OpAdaptor,
                     ConversionPatternRewriter &rewriter) const override
     {
       auto attr = llvm::dyn_cast<DenseElementsAttr>(op.getValue());
@@ -80,15 +80,15 @@ namespace
   };
 
   //===----------------------------------------------------------------------===//
-  // MLPTolinalg RewritePatterns: Print operations
+  // HexirToLinalg RewritePatterns: Print operations
   //===----------------------------------------------------------------------===//
 
-  struct PrintOpLowering : public OpConversionPattern<mlp::PrintOp>
+  struct PrintOpLowering : public OpConversionPattern<hexir::PrintOp>
   {
-    using OpConversionPattern<mlp::PrintOp>::OpConversionPattern;
+    using OpConversionPattern<hexir::PrintOp>::OpConversionPattern;
 
     LogicalResult
-    matchAndRewrite(mlp::PrintOp op, OpAdaptor adaptor,
+    matchAndRewrite(hexir::PrintOp op, OpAdaptor adaptor,
                     ConversionPatternRewriter &rewriter) const final
     {
       Value input = adaptor.getInput();
@@ -101,7 +101,7 @@ namespace
             rewriter, op.getLoc(), memrefType, input,
             /*read_only=*/true);
 
-        rewriter.replaceOpWithNewOp<mlp::PrintOp>(op, buffer);
+        rewriter.replaceOpWithNewOp<hexir::PrintOp>(op, buffer);
         return success();
       }
 
@@ -112,14 +112,15 @@ namespace
     }
   };
 
-  struct LinearOpToLinalg : public OpConversionPattern<mlp::LinearOp>
+  struct LinearOpToLinalg : public OpConversionPattern<hexir::LinearOp>
   {
     using OpConversionPattern::OpConversionPattern;
 
     LogicalResult
-    matchAndRewrite(mlp::LinearOp op, OpAdaptor adaptor,
+    matchAndRewrite(hexir::LinearOp op, OpAdaptor adaptor,
                     ConversionPatternRewriter &rewriter) const override
     {
+    
       Location loc = op.getLoc();
 
       // auto resultTy = op.getType().dyn_cast<RankedTensorType>();
@@ -141,17 +142,22 @@ namespace
                                    /*inputs=*/ValueRange{lhs, rhs},
                                    /*outputs=*/ValueRange{init});
 
+      // Propagate placement decided on the hexir op (PartitionPass runs
+      // before this lowering) down to the linalg op.
+      if (auto device = op->getAttrOfType<StringAttr>("device"))
+        linear->setAttr("device", device);
+
       rewriter.replaceOp(op, linear.getResult(0));
       return success();
     }
   };
 
-  struct AddOpToLinalg : public OpConversionPattern<mlp::AddOp>
+  struct AddOpToLinalg : public OpConversionPattern<hexir::AddOp>
   {
     using OpConversionPattern::OpConversionPattern;
 
     LogicalResult
-    matchAndRewrite(mlp::AddOp op, OpAdaptor adaptor,
+    matchAndRewrite(hexir::AddOp op, OpAdaptor adaptor,
                     ConversionPatternRewriter &rewriter) const override
     {
       Location loc = op.getLoc();
@@ -174,17 +180,20 @@ namespace
                                        /*inputs=*/ValueRange{lhs, rhs},
                                        /*outputs=*/ValueRange{init});
 
+      if (auto device = op->getAttrOfType<StringAttr>("device"))
+        add->setAttr("device", device);
+
       rewriter.replaceOp(op, add.getResult(0));
       return success();
     }
   };
 
-  struct ReluOpToLinalg : public mlir::OpConversionPattern<mlp::ReluOp>
+  struct ReluOpToLinalg : public mlir::OpConversionPattern<hexir::ReluOp>
   {
     using OpConversionPattern::OpConversionPattern;
 
     LogicalResult
-    matchAndRewrite(mlp::ReluOp op, OpAdaptor adaptor,
+    matchAndRewrite(hexir::ReluOp op, OpAdaptor adaptor,
                     ConversionPatternRewriter &rewriter) const override
     {
       Location loc = op.getLoc();
@@ -252,16 +261,19 @@ namespace
       //       builder.create<linalg::YieldOp>(loc, relu);
       //     });
 
+      if (auto device = op->getAttrOfType<StringAttr>("device"))
+        genericOp->setAttr("device", device);
+
       rewriter.replaceOp(op, genericOp.getResult(0));
       return success();
     }
   };
 
-  // struct SoftmaxToLinalg : public mlir::OpConversionPattern<mlp::SoftmaxOp> {
+  // struct SoftmaxToLinalg : public mlir::OpConversionPattern<hexir::SoftmaxOp> {
   //   using OpConversionPattern::OpConversionPattern;
 
   //   LogicalResult
-  //   matchAndRewrite(mlp::SoftmaxOp op, OpAdaptor adaptor,
+  //   matchAndRewrite(hexir::SoftmaxOp op, OpAdaptor adaptor,
   //                   ConversionPatternRewriter &rewriter) const override {
   //     Location loc = op.getLoc();
   //     auto resultTy = op.getType().dyn_cast<RankedTensorType>();
@@ -342,31 +354,31 @@ namespace
 } // namespace
 
 //===----------------------------------------------------------------------===//
-// MlpTolinalgLoweringPass
+// HexirTolinalgLoweringPass
 //===----------------------------------------------------------------------===//
 
-// / This is a partial lowering to linalg loops of the MLP operations that are
+// / This is a partial lowering to linalg loops of the Hexir operations that are
 // / computationally intensive (like matmul for example...) while keeping the
-// / rest of the code in the MLP dialect.
+// / rest of the code in the Hexir dialect.
 
 //===----------------------------------------------------------------------===//
-// // MLPToLinalgLoweringPass
+// // HexirToLinalgLoweringPass
 //
 //===----------------------------------------------------------------------===//
 
 namespace
 {
 
-  struct MLPToLinalgLoweringPass
-      : public PassWrapper<MLPToLinalgLoweringPass, OperationPass<ModuleOp>>
+  struct HexirToLinalgLoweringPass
+      : public PassWrapper<HexirToLinalgLoweringPass, OperationPass<ModuleOp>>
   {
 
-    MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MLPToLinalgLoweringPass)
+    MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(HexirToLinalgLoweringPass)
 
-    StringRef getArgument() const override { return "mlp-lower-to-linalg"; }
+    StringRef getArgument() const override { return "hexir-lower-to-linalg"; }
     StringRef getDescription() const override
     {
-      return "Lower MLP dialect matmul operations to Linalg dialect";
+      return "Lower Hexir dialect matmul operations to Linalg dialect";
     }
 
     void getDependentDialects(DialectRegistry &registry) const override
@@ -395,20 +407,20 @@ namespace
 
       RewritePatternSet patterns(ctx);
 
-      target.addIllegalDialect<mlir::mlp::MLPDialect>();
+      target.addIllegalDialect<mlir::hexir::HexirDialect>();
 
-      // target.addDynamicallyLegalOp<mlp::PrintOp>([](mlp::PrintOp op) {
+      // target.addDynamicallyLegalOp<hexir::PrintOp>([](hexir::PrintOp op) {
       //   return llvm::none_of(op->getOperandTypes(), [](Type type) {
       //     return llvm::isa<TensorType>(type);
       //   });
       // });
 
-      // target.addDynamicallyLegalOp<mlp::PrintOp>([](mlp::PrintOp op) {
+      // target.addDynamicallyLegalOp<hexir::PrintOp>([](hexir::PrintOp op) {
       //   return llvm::none_of(op->getOperandTypes(), [](Type type) {
       //     return llvm::isa<MemRefType>(type);
       //   });
       // });
-      target.addDynamicallyLegalOp<mlp::PrintOp>([](mlp::PrintOp op)
+      target.addDynamicallyLegalOp<hexir::PrintOp>([](hexir::PrintOp op)
                                                  { return llvm::all_of(op->getOperandTypes(), [](Type type)
                                                                        { return llvm::isa<MemRefType>(type); }); });
 
@@ -428,7 +440,7 @@ namespace
 //
 //===----------------------------------------------------------------------===//
 
-std::unique_ptr<Pass> mlir::mlp::createLowerToLinalgPass()
+std::unique_ptr<Pass> mlir::hexir::createLowerToLinalgPass()
 {
-  return std::make_unique<MLPToLinalgLoweringPass>();
+  return std::make_unique<HexirToLinalgLoweringPass>();
 }

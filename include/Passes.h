@@ -18,7 +18,7 @@
 namespace mlir {
 class Pass;
 
-namespace mlp {
+namespace hexir {
 std::unique_ptr<Pass> createShapeInferencePass();
 
 /// Create a pass for lowering to operations in the `Affine` and `Std` dialects,
@@ -29,16 +29,23 @@ std::unique_ptr<mlir::Pass> createLowerToAffinePass();
 /// well as `Affine` and `Std`, to the LLVM dialect for codegen.
 std::unique_ptr<mlir::Pass> createLowerToLLVMPass();
 
-// Create pass mlp-to-linalg
+// Create pass hexir-to-linalg
 std::unique_ptr<mlir::Pass> createLowerToLinalgPass();
 
 // Annotate supported ops with their selected CPU/CUDA device.
 std::unique_ptr<mlir::Pass> createPartitionPass();
 
+// Materialize partition annotations as ls_cpu/ls_gpu model operations.
+std::unique_ptr<mlir::Pass> createMaterializeLSTargetsPass();
+
 // Lower CUDA-partitioned linalg ops to the MLIR GPU dialect.
 std::unique_ptr<mlir::Pass> createCudaGpuLoweringPass();
 
-} // namespace mlp
+// Lower ls_cpu/ls_gpu model ops back to Linalg (runs after materialization,
+// before bufferization, so downstream passes see standard linalg ops).
+std::unique_ptr<mlir::Pass> createLSTargetsToLinalgPass();
+
+} // namespace hexir
 } // namespace mlir
 
-#endif // MLP_PASSES_H
+#endif // HEXIR_PASSES_H

@@ -6,7 +6,7 @@
 #include <string>
 
 namespace mlir {
-namespace mlp {
+namespace hexir {
 
 /// Target support info for operators.
 class TargetSupport {
@@ -22,6 +22,11 @@ public:
   /// Register support: opName -> targets.
   void registerSupport(StringRef opName, llvm::ArrayRef<StringRef> targets);
 
+  /// Override the preferred target for an op at runtime (e.g. from the
+  /// -placement command-line flag). Returns false if the op does not
+  /// support the requested target.
+  bool setPreferredTarget(StringRef opName, StringRef target);
+
 private:
   TargetSupport();
 
@@ -29,5 +34,5 @@ private:
   llvm::StringMap<std::string> opPreferred_;
 };
 
-} // namespace mlp
+} // namespace hexir
 } // namespace mlir

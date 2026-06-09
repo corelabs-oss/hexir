@@ -1,4 +1,4 @@
-//===- Jit.h - MLP Jit -------------------------------------===//
+//===- Jit.h - Hexir Jit -------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -60,4 +60,4 @@ namespace jit {
 int runJit(mlir::ModuleOp module);
 } // namespace jit
 
-#endif // MLP_PARSER_H
+#endif // HEXIR_PARSER_H

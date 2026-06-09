@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLP_COMBINE
-#define MLP_COMBINE
+#ifndef HEXIR_COMBINE
+#define HEXIR_COMBINE
 
 include "mlir/IR/PatternBase.td"
 include "Ops.td"
@@ -60,4 +60,4 @@ include "Ops.td"
 //   (ReshapeOp:$res $arg), (replaceWithValue $arg),
 //   [(TypesAreIdentical $res, $arg)]>;
 
-#endif // MLP_COMBINE
+#endif // HEXIR_COMBINE

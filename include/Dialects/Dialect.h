@@ -1,4 +1,4 @@
-//===- Dialect.h - Dialect definition for the Mlp IR ----------------------===//
+//===- Dialect.h - Dialect definition for the Hexir IR ----------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,13 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the IR Dialect for the Mlp language.
+// This file implements the IR Dialect for the Hexir language.
 // See docs/Tutorials/Ch-2.md for more information.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_TUTORIAL_MLP_DIALECT_H_
-#define MLIR_TUTORIAL_MLP_DIALECT_H_
+#ifndef HEXIR_DIALECT_H_
+#define HEXIR_DIALECT_H_
 
 #include "ShapeInferenceInterface.h"
 #include "mlir/Bytecode/BytecodeOpInterface.h"
@@ -25,36 +25,36 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 
 namespace mlir {
-namespace mlp {
+namespace hexir {
 
 namespace detail {
 
 struct StructTypeStorage;
 } // namespace detail
-} // namespace mlp
+} // namespace hexir
 } // namespace mlir
 
-/// Include the auto-generated header file containing the declaration of the mlp
+/// Include the auto-generated header file containing the declaration of the hexir
 /// dialect.
 #include "Dialect.h.inc"
 
 //===----------------------------------------------------------------------===//
-// Mlp Operations
+// Hexir Operations
 //===----------------------------------------------------------------------===//
 
 /// Include the auto-generated header file containing the declarations of the
-/// Mlp operations.
+/// Hexir operations.
 #define GET_OP_CLASSES
 #include "Ops.h.inc"
 
 namespace mlir {
-namespace mlp {
+namespace hexir {
 
 //===----------------------------------------------------------------------===//
-// Mlp Types
+// Hexir Types
 //===----------------------------------------------------------------------===//
 
-/// This class defines the Mlp struct type. It represents a collection of
+/// This class defines the Hexir struct type. It represents a collection of
 /// element types. All derived types in MLIR must inherit from the CRTP class
 /// 'Type::TypeBase'. It takes as template parameters the concrete type
 /// (StructType), the base class to use (Type), and the storage class
@@ -77,9 +77,9 @@ namespace mlp {
 //   size_t getNumElementTypes() { return getElementTypes().size(); }
 
 //   /// The name of this struct type.
-//   static constexpr StringLiteral name = "Mlp.struct";
+//   static constexpr StringLiteral name = "Hexir.struct";
 // };
-} // namespace mlp
+} // namespace hexir
 } // namespace mlir
 
-#endif // MLIR_TUTORIAL_MLP_DIALECT_H_
+#endif // HEXIR_DIALECT_H_

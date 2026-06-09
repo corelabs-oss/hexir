@@ -31,7 +31,7 @@
 
 using namespace mlir;
 // using namespace dbs;
-using namespace mlir::mlp;
+using namespace mlir::hexir;
 
 namespace builder {
 /**
@@ -103,10 +103,10 @@ func::FuncOp createMainFunction(MLIRContext &ctx, ModuleOp module) {
   }
 #endif
 
-  [[maybe_unused]] Value c1 = arith::ConstantOp::create(builder, builder.getUnknownLoc(),
-                                       builder.getF32FloatAttr(1.0));
-[[maybe_unused]]  Value c2 = arith::ConstantOp::create(builder, builder.getUnknownLoc(),
-                                       builder.getF32FloatAttr(2.0));
+  [[maybe_unused]] Value c1 = arith::ConstantOp::create(
+      builder, builder.getUnknownLoc(), builder.getF32FloatAttr(1.0));
+  [[maybe_unused]] Value c2 = arith::ConstantOp::create(
+      builder, builder.getUnknownLoc(), builder.getF32FloatAttr(2.0));
 
   //  [[maybe_unused]] Value add = builder
   //  .create<func::CallOp>(builder.getUnknownLoc(), "my_mul",
@@ -242,19 +242,19 @@ func::FuncOp createMLPAddFunction(MLIRContext &ctx,
   auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorf64Ty, vals2);
 
   Value c1 =
-      mlp::ConstantOp::create(builder, loc, rankedtensorf64Ty, denseAttr1);
+      hexir::ConstantOp::create(builder, loc, rankedtensorf64Ty, denseAttr1);
 
   Value c2 =
-      mlp::ConstantOp::create(builder, loc, rankedtensorf64Ty, denseAttr2);
+      hexir::ConstantOp::create(builder, loc, rankedtensorf64Ty, denseAttr2);
 
-  Value add = mlp::AddOp::create(builder, loc, rankedtensorf64Ty, c1, c2);
+  Value add = hexir::AddOp::create(builder, loc, rankedtensorf64Ty, c1, c2);
   // Value add =
-  //     builder.create < mlp::ReluOp::create(builder, loc, rankedtensorf64Ty,
+  //     builder.create < hexir::ReluOp::create(builder, loc, rankedtensorf64Ty,
   //     c1);
 
-  mlp::PrintOp::create(builder, builder.getUnknownLoc(), c1);
-  mlp::PrintOp::create(builder, builder.getUnknownLoc(), c2);
-  mlp::PrintOp::create(builder, builder.getUnknownLoc(), add);
+  hexir::PrintOp::create(builder, builder.getUnknownLoc(), c1);
+  hexir::PrintOp::create(builder, builder.getUnknownLoc(), c2);
+  hexir::PrintOp::create(builder, builder.getUnknownLoc(), add);
 
   func::ReturnOp::create(builder, loc);
 
@@ -296,26 +296,29 @@ func::FuncOp createMLPLinearFunction(MLIRContext &ctx,
   auto tensor1DTy = RankedTensorType::get({1, N}, f64); // Batch is 1
   // auto tensor1DTy = RankedTensorType::get({1,N}, f64); // Batch is 1
   auto denseAttr1D = mlir::DenseElementsAttr::get(tensor1DTy, vals1D);
-  [[maybe_unused]] Value c1D = mlp::ConstantOp::create(builder, loc, tensor1DTy, denseAttr1D);
+  [[maybe_unused]] Value c1D =
+      hexir::ConstantOp::create(builder, loc, tensor1DTy, denseAttr1D);
 
   auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals1);
   auto denseAttr2 = mlir::DenseElementsAttr::get(rankedtensorfTy, vals2);
 
-  Value c1 = mlp::ConstantOp::create(builder, loc, rankedtensorfTy, denseAttr1);
-  Value c2 = mlp::ConstantOp::create(builder, loc, rankedtensorfTy, denseAttr2);
-  // mlp::PrintOp::create(builder, loc, c1);
-  // mlp::PrintOp::create(builder, loc, c2);
+  Value c1 =
+      hexir::ConstantOp::create(builder, loc, rankedtensorfTy, denseAttr1);
+  Value c2 =
+      hexir::ConstantOp::create(builder, loc, rankedtensorfTy, denseAttr2);
+  // hexir::PrintOp::create(builder, loc, c1);
+  // hexir::PrintOp::create(builder, loc, c2);
 
-  Value lin = mlp::LinearOp::create(builder, loc, rankedtensorfTy, c1, c2);
+  Value lin = hexir::LinearOp::create(builder, loc, rankedtensorfTy, c1, c2);
 
-  // mlp::PrintOp::create(builder, loc, lin);
+  hexir::PrintOp::create(builder, loc, lin);
 
-  Value relu = mlp::ReluOp::create(builder, loc, rankedtensorfTy, lin);
+  //Value relu = hexir::ReluOp::create(builder, loc, rankedtensorfTy, lin);
 
-  // Value softmax = builder.create<mlp::SoftmaxOp::create(builder,loc,
+  // Value softmax = builder.create<hexir::SoftmaxOp::create(builder,loc,
   // tensor1DTy, c1D);
 
-  mlp::PrintOp::create(builder, loc, relu);
+  //hexir::PrintOp::create(builder, loc, relu);
 
   mlir::func::ReturnOp::create(builder, loc);
 
@@ -373,18 +376,19 @@ func::FuncOp createMLPLinearFunction(MLIRContext &ctx,
 //   auto denseAttr5 = DenseElementsAttr::get(rankedtensor64Ty, attrs1);
 
 //   // Value c64 =
-//   //     mlp::ConstantOp::create(builder,loc, rankedtensor64Ty, denseAttr5);
+//   //     hexir::ConstantOp::create(builder,loc, rankedtensor64Ty,
+//   denseAttr5);
 
 //   // // 2) cast f64 -> f32 (tensor-level)
 //   // Value c32 =
 //   //     builder.create<arith::TruncFOp>(loc, rankedtensor32Ty, c64);
 
 //   // // 3) use f32 result
-//   // mlp::PrintOp::create(builder,loc, c32);
+//   // hexir::PrintOp::create(builder,loc, c32);
 
 //   /////////////////////////////
 
-//   // Value c1 = mlp::ConstantOp::create(builder,loc, rankedtensor32Ty,
+//   // Value c1 = hexir::ConstantOp::create(builder,loc, rankedtensor32Ty,
 //   // denseAttr1);
 
 //   // Value c2 = builder.create<tosa::ConstOp::create(builder,loc,
@@ -393,9 +397,9 @@ func::FuncOp createMLPLinearFunction(MLIRContext &ctx,
 //   // Value add = builder.create<tosa::AddOp::create(builder,loc,
 //   rankedtensorTy, c1, c2);
 
-//   // mlp::PrintOp::create(builder,builder.getUnknownLoc(), c32);
-//   //   mlp::PrintOp::create(builder,builder.getUnknownLoc(), c22);
-//   //   mlp::PrintOp::create(builder,builder.getUnknownLoc(), add);
+//   // hexir::PrintOp::create(builder,builder.getUnknownLoc(), c32);
+//   //   hexir::PrintOp::create(builder,builder.getUnknownLoc(), c22);
+//   //   hexir::PrintOp::create(builder,builder.getUnknownLoc(), add);
 
 //   auto t32 = RankedTensorType::get({2}, f32);
 //   auto t64 = RankedTensorType::get({2}, f64);
@@ -406,8 +410,8 @@ func::FuncOp createMLPLinearFunction(MLIRContext &ctx,
 //     attrs64.push_back(builder.getFloatAttr(f64, v));
 
 //   auto dense32 = DenseElementsAttr::get(t64, attrs64);
-//   Value c32 = mlp::ConstantOp::create(builder,loc, t32, dense32);
-//   mlp::PrintOp::create(builder,builder.getUnknownLoc(), c32);
+//   Value c32 = hexir::ConstantOp::create(builder,loc, t32, dense32);
+//   hexir::PrintOp::create(builder,builder.getUnknownLoc(), c32);
 //   builder.create<func::ReturnOp::create(builder,loc);
 
 //   return func;
@@ -440,15 +444,15 @@ func::FuncOp createMLPReluFunction(MLIRContext &ctx,
 
   auto denseAttr1 = mlir::DenseElementsAttr::get(rankedtensorTy, vals1);
 
-  Value c11 = mlp::ConstantOp::create(builder, builder.getUnknownLoc(),
-                                      rankedtensorTy, denseAttr1);
+  Value c11 = hexir::ConstantOp::create(builder, builder.getUnknownLoc(),
+                                        rankedtensorTy, denseAttr1);
 
-  Value relu = mlp::ReluOp::create(builder, builder.getUnknownLoc(),
-                                   rankedtensorTy, c11);
+  Value relu = hexir::ReluOp::create(builder, builder.getUnknownLoc(),
+                                     rankedtensorTy, c11);
 
-  mlp::PrintOp::create(builder, builder.getUnknownLoc(), c11);
+  hexir::PrintOp::create(builder, builder.getUnknownLoc(), c11);
 
-  mlp::PrintOp::create(builder, builder.getUnknownLoc(), relu);
+  hexir::PrintOp::create(builder, builder.getUnknownLoc(), relu);
 
   func::ReturnOp::create(builder, builder.getUnknownLoc());
   return func;
